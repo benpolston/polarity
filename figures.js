@@ -223,17 +223,13 @@ for (const f of FIGURES) {
  * Rule: no default's label may be displaced by another default (check after moving any figure).
  */
 const DEFAULT_FIGURES = [
-  // Authoritarian Left
-  'Joseph Stalin', 'Xi Jinping', 'Fidel Castro', 'John F. Kennedy',
-  'Franklin D. Roosevelt', 'Hillary Clinton', 'Hugo Chávez', 'Saddam Hussein',
-  // Authoritarian Right
-  'Adolf Hitler', 'Vladimir Putin', 'Donald Trump', 'Ronald Reagan', 'Elon Musk', 'Tucker Carlson',
-  'Dwight D. Eisenhower', 'Joseph McCarthy', 'Augusto Pinochet',
-  // On the horizontal axis (social 0)
-  'Barack Obama',
-  // Libertarian Left
-  'Bernie Sanders', 'Mahatma Gandhi', 'Joe Biden', 'Martin Luther King Jr.', 'Karl Marx', 'Noam Chomsky',
-  'Elizabeth Warren', 'Bill Maher',
-  // Libertarian Right
-  'Ayn Rand', 'Rand Paul', 'Joe Rogan', 'Thomas Jefferson', 'John McAfee', 'Barry Goldwater',
+  // In PRIORITY order (most recognizable first). Desktop shows all of them. Narrow screens, where labels
+  // must be drawn larger to stay readable, show as many as fit from the top of this list without any
+  // label moving. tests.html checks both.
+  'Donald Trump', 'Barack Obama', 'Adolf Hitler', 'Joseph Stalin', 'Joe Biden', 'Bernie Sanders',
+  'Ronald Reagan', 'Martin Luther King Jr.', 'Karl Marx', 'Vladimir Putin', 'Mahatma Gandhi', 'Elon Musk',
+  'Joe Rogan', 'Hillary Clinton', 'John F. Kennedy', 'Ayn Rand', 'Franklin D. Roosevelt', 'Thomas Jefferson',
+  'Fidel Castro', 'Xi Jinping', 'Tucker Carlson', 'Elizabeth Warren', 'Noam Chomsky', 'Rand Paul',
+  'Saddam Hussein', 'Hugo Chávez', 'Dwight D. Eisenhower', 'Bill Maher', 'Joseph McCarthy',
+  'Augusto Pinochet', 'John McAfee', 'Barry Goldwater',
 ];

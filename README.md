@@ -15,6 +15,14 @@ python -m http.server 8000
 then open http://localhost:8000. (Opening `index.html` directly as a file mostly works too,
 but clipboard copy needs `http://localhost` or HTTPS.)
 
+## Checks (run before every deploy)
+
+- `node test.js`: statement balance (full and quick test), unbiased scoring (agree-all = 0, corners = ±10,
+  "Don't know" excluded), share-link round trips, and figure data (names, positions, types, stances).
+  Exits with an error if anything fails.
+- Open `tests.html` through the local server: checks that every default figure's label sits right
+  beside its dot at desktop, tablet and phone widths across 81 result positions.
+
 ## Deploy
 
 1. `node bump-version.js` — stamps a fresh `?v=` on every asset link in `index.html`, so
@@ -30,7 +38,9 @@ but clipboard copy needs `http://localhost` or HTTPS.)
 |---|---|
 | `questions.js` | Statements, topics, sections, scoring direction, consistency pairs, balance audit |
 | `figures.js` | Political figures: estimated positions, types, manual stances, chart defaults |
-| `app.js` | Quiz, scoring, results, share links, comparison, figures UI |
+| `core.js` | Scoring and share-link encoding (pure functions, shared with `test.js`) |
+| `app.js` | Quiz, results, comparison, figures UI, chart drawing |
+| `test.js`, `tests.html` | Automated checks (see above) |
 | `style.css` | All styling, including the small-screen layout |
 | `logo.svg` | Logo and favicon (deliberately has no position dot, so it implies no lean) |
 | `bump-version.js` | Cache-busting helper for deploys |

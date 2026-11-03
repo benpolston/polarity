@@ -32,58 +32,12 @@ function save() { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch 
 function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function median(a) { if (!a.length) return 0; const s = a.slice().sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
 function dur(ms) { const s = Math.round(ms / 1000); return s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`; }
-const known = a => !!a && typeof a.v === 'number';          // answered with an opinion (not "Don't know")
 const labelOf = v => typeof v === 'number' ? LABELS[v + 2] : SKIP_LABEL;
 
-/* ---------------- scoring ---------------- */
-const eff = (q, v) => v * q.d;   // directional value, -2..+2 (+ = Right on economic, Authoritarian on social)
-
-// Score a subset of questions. Each axis: sum(eff) / (2 * n) * 10  => range -10..+10.
-// "Don't know" answers are left out entirely, so they never pull anyone toward the center.
-function scoreOf(filter, answers) {
-  const out = { econ: 0, soc: 0, nE: 0, nS: 0 };
-  let se = 0, ss = 0;
-  for (const q of QUESTIONS) {
-    if (filter && !filter(q)) continue;
-    const a = answers[q.id]; if (!known(a)) continue;
-    if (q.axis === 'econ') { se += eff(q, a.v); out.nE++; } else { ss += eff(q, a.v); out.nS++; }
-  }
-  out.econ = out.nE ? se / (2 * out.nE) * 10 : 0;
-  out.soc = out.nS ? ss / (2 * out.nS) * 10 : 0;
-  return out;
-}
-function describe(v) {
-  const a = Math.abs(v);
-  return a < 1 ? 'near the center' : a < 3 ? 'mildly' : a < 6 ? 'moderately' : a < 8.5 ? 'strongly' : 'extremely';
-}
-function quadrant(e, s) {
-  return (s >= 0 ? 'Authoritarian ' : 'Libertarian ') + (e >= 0 ? 'Right' : 'Left');
-}
+/* scoring + share-link encoding live in core.js */
 function answered() { return S ? Object.keys(S.answers).length : 0; }
 
-/* ---------------- share links ----------------
- * #r=<key>.<codes>[&n=<name>]
- *   key   = fingerprint of the question set, so links from an older version are rejected, not misread
- *   codes = one character per statement in bank order: 0..4 = strongly disagree..strongly agree, x = don't know
- * Everything after # stays in the browser; it is never sent to the server.
- */
-const QSET_KEY = (() => {
-  let h = 7;
-  for (const q of QUESTIONS) for (const ch of q.id + q.d) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return h.toString(36);
-})();
-function encodeAnswers(answers) {
-  return QSET_KEY + '.' + QUESTIONS.map(q => { const a = answers[q.id]; return !a ? '-' : known(a) ? String(a.v + 2) : 'x'; }).join('');
-}
-function decodeAnswers(code) {
-  const [key, codes] = String(code || '').split('.');
-  if (!codes) return { error: 'That link is incomplete. Make sure you copied the whole thing.' };
-  if (key !== QSET_KEY) return { error: 'That link was made with a different version of the test, so its answers can\'t be read correctly.' };
-  if (codes.length !== QUESTIONS.length || /[^0-4x]/.test(codes)) return { error: 'That link is damaged or incomplete.' };
-  const answers = {};
-  QUESTIONS.forEach((q, i) => { const c = codes[i]; answers[q.id] = { v: c === 'x' ? null : +c - 2, ms: 0, changes: 0, seq: i + 1 }; });
-  return { answers };
-}
+/* ---------------- share links (encoding in core.js) ---------------- */
 function parseShare(str) {
   const i = String(str || '').indexOf('#');
   const p = new URLSearchParams(i >= 0 ? str.slice(i + 1) : str);
@@ -264,8 +218,10 @@ function textW(str, fs, weight) {
   _meas.setAttribute('font-size', fs); _meas.setAttribute('font-weight', weight || 'normal'); _meas.textContent = str;
   return (_cache[k] = _meas.getComputedTextLength() || str.length * 6);
 }
-// x,y = the person whose result this is; figs = figures to draw; friend = optional {econ, soc, name}
-function compassSVG(x, y, figs, friend) {
+// x,y = the person whose result this is (x === null: no result dot); figs = figures to draw;
+// friend = optional {econ, soc, name}; opts.width = on-screen width to size labels for (default: #compass-wrap).
+// After each call, compassSVG.lastMoved lists any figure whose label could not sit right beside its dot.
+function compassSVG(x, y, figs, friend, opts = {}) {
   const SZ = 540, SZW = 620, P = 56, W = SZ - 2 * P;   // SZW leaves a right margin so labels can sit beside right-edge dots
   const px = v => P + (v + 10) / 20 * W, py = v => P + (10 - v) / 20 * W;
   let g = '';
@@ -290,7 +246,7 @@ function compassSVG(x, y, figs, friend) {
 
   figs = figs || [];
   // label text is sized for the chart's real on-screen width, so names stay readable (~10px+) on phones
-  const shownW = (document.getElementById('compass-wrap') || {}).clientWidth || SZW;
+  const shownW = opts.width || (document.getElementById('compass-wrap') || {}).clientWidth || SZW;
   const FS = Math.max(11.5, Math.min(20, 10.5 * SZW / shownW)), H = Math.round(FS * 1.4);
   // obstacles: every figure dot, then labels as they get placed. Your dot and your friend's marker are
   // NOT obstacles: they're drawn on top instead, so a figure's label never moves just because of where
@@ -302,13 +258,14 @@ function compassSVG(x, y, figs, friend) {
   }
   // labels always sit to the RIGHT of their dot; if blocked, they slide up/down on that side with a leader line.
   // Your friend's label is placed first, then figures nearest-first.
-  const labelItems = [];
+  const labelItems = [], moved = [];
   if (friend) labelItems.push({ name: friend.name, cx: px(friend.econ), cy: py(friend.soc), gap: 12, bold: true, owner: '__friend' });
   for (const f of figs) labelItems.push({ name: f.name, cx: px(f.econ), cy: py(f.soc), gap: 7, owner: f.name });
   for (const L of labelItems) {
     const w = textW(L.name, FS, L.bold ? 700 : null) + 3;
     const tries = [0, -1, 1, -2, 2, -3, 3, -4, 4].map(k => [L.cx + L.gap, L.cy - H / 2 + k * (H - 4)]);
     const spot = tries.find(([tx, ty]) => tx + w <= SZW - 20 && ty >= 4 && ty + H <= SZ - 4 && !hit({ x: tx, y: ty, w, h: H, owner: L.owner }));
+    if (L.owner !== '__friend' && spot !== tries[0]) moved.push(L.name);
     if (!spot) continue;                       // no clear space: the dot still names it on hover/tap
     boxes.push({ x: spot[0], y: spot[1], w, h: H, owner: '__label' });
     const nx = Math.max(spot[0], Math.min(L.cx, spot[0] + w)), ny = Math.max(spot[1], Math.min(L.cy, spot[1] + H));
@@ -316,8 +273,10 @@ function compassSVG(x, y, figs, friend) {
     g += `<text x="${spot[0]}" y="${spot[1] + H - FS * 0.35}" font-size="${FS}"${L.bold ? ' font-weight="700"' : ''} fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">${esc(L.name)}</text>`;
   }
   if (friend) g += `<circle cx="${px(friend.econ)}" cy="${py(friend.soc)}" r="8" fill="#fff" stroke="#111" stroke-width="3"/>`;
-  g += `<circle cx="${px(x)}" cy="${py(y)}" r="9" fill="#111" stroke="#fff" stroke-width="2.5"/>`;
-  return `<svg viewBox="0 0 ${SZW} ${SZ}" width="100%" role="img" aria-label="Political compass: economic ${fmt(x)}, social ${fmt(y)}"><g transform="translate(16 0)">${g}</g></svg>`;
+  if (x !== null) g += `<circle cx="${px(x)}" cy="${py(y)}" r="9" fill="#111" stroke="#fff" stroke-width="2.5"/>`;
+  compassSVG.lastMoved = moved;
+  const aria = x === null ? 'Political compass showing estimated positions of well-known figures' : `Political compass: economic ${fmt(x)}, social ${fmt(y)}`;
+  return `<svg viewBox="0 0 ${SZW} ${SZ}" width="100%" role="img" aria-label="${aria}"><g transform="translate(16 0)">${g}</g></svg>`;
 }
 
 /* ---------------- results ---------------- */
@@ -613,7 +572,29 @@ const FIG_STORE = 'compass-detailed-figs';
 const figState = { quad: '', text: '', sort: 'dist', dir: 1, pick: '', kind: '',
   // no saved choice yet -> best-known defaults; a saved choice (even "None") is respected
   sel: new Set((() => { try { const v = JSON.parse(localStorage.getItem(FIG_STORE)); return Array.isArray(v) ? v : DEFAULT_FIGURES; } catch { return DEFAULT_FIGURES; } })()) };
-const saveSel = () => { try { localStorage.setItem(FIG_STORE, JSON.stringify([...figState.sel])); } catch {} };
+const saveSel = () => { figState.custom = true; try { localStorage.setItem(FIG_STORE, JSON.stringify([...figState.sel])); } catch {} };
+figState.custom = (() => { try { return Array.isArray(JSON.parse(localStorage.getItem(FIG_STORE))); } catch { return false; } })();
+// Largest set of default figures (taken in priority order) whose labels all sit beside their dots at this
+// on-screen width. Label collisions don't depend on where a result lands (result dots aren't obstacles),
+// so one check per width covers every result. On desktop this is normally the whole default list.
+const _fitCache = {};
+function fittedDefaults(width) {
+  const w = Math.round(width || 0);
+  if (_fitCache[w]) return _fitCache[w];
+  const figs = DEFAULT_FIGURES.map(n => FIGURES.find(f => f.name === n)).filter(Boolean);
+  const kept = [];
+  for (const f of figs) {
+    compassSVG(null, null, [...kept, f], null, { width: w });
+    if (!compassSVG.lastMoved.length) kept.push(f);
+  }
+  return (_fitCache[w] = kept.map(f => f.name));
+}
+function applyDefaultsForWidth() {
+  if (figState.custom) return false;
+  const wrap = document.getElementById('compass-wrap');
+  figState.sel = new Set(fittedDefaults(wrap && wrap.clientWidth));
+  return true;
+}
 function figuresCard() {
   return `<div class="card" id="figs"><h2>Political figures</h2>
     <p class="small muted"><b>Positions are rough editorial estimates, not measurements.</b> They are not derived from this test's questions or taken from politicalcompass.org, and many figures shifted over their careers. Distance is the straight-line gap between this result and theirs on the −10…+10 grid (the maximum possible is about 28). Edit <code>figures.js</code> to correct any placement.</p>
@@ -698,6 +679,8 @@ if (!touchMode) {
 
 function initFigures(pt) {
   const $ = id => document.getElementById(id);
+  applyDefaultsForWidth();
+  window.onresize = (() => { let t; return () => { clearTimeout(t); t = setTimeout(() => { if (document.getElementById('fp-list') && applyDefaultsForWidth()) { drawPicker(pt); drawChartFigs(pt); } }, 250); }; })();
   $('fg-quad').value = figState.quad; $('fg-text').value = figState.text; $('fp-text').value = figState.pick; $('fp-kind').value = figState.kind;
   $('fp-kind').onchange = e => { figState.kind = e.target.value; drawPicker(pt); };
   $('fp-text').oninput = e => { figState.pick = e.target.value; drawPicker(pt); };
@@ -818,6 +801,9 @@ function download(name, text, type) {
   const url = URL.createObjectURL(new Blob([text], { type }));
   const a = document.createElement('a'); a.href = url; a.download = name; a.click(); URL.revokeObjectURL(url);
 }
+
+// used by tests.html to check chart label placement with the real drawing code
+window.PolarityTest = { compassSVG, fittedDefaults };
 
 render();
 })();

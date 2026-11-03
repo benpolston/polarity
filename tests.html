@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Polarity — chart label checks</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  body{padding:20px}
+  .res{font:14px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px}
+  .ok{color:#166534}.bad{color:#991b1b;font-weight:700}
+  #stage{position:absolute;left:-9999px;top:0}
+</style>
+</head>
+<body>
+<!-- stubs the app expects; the app itself stays hidden -->
+<a id="home" hidden></a><span id="progress-mini" hidden></span><main id="app" hidden></main>
+<h1>Chart label checks</h1>
+<p class="muted">Rule: every default figure's name sits directly to the right of its own dot, and no label is ever moved
+or dropped, wherever a result lands. Desktop must show every default; narrower screens show as many as fit
+(in priority order). Checked at three widths across 81 result positions.
+Run <code>node test.js</code> for everything else.</p>
+<div class="res" id="out">Running…</div>
+<div id="stage"><div id="compass-wrap"></div></div>
+<script src="questions.js"></script>
+<script src="figures.js"></script>
+<script src="core.js"></script>
+<script src="app.js"></script>
+<script>
+(async () => {
+  // the app renders into the hidden #app on load (which may create a second #compass-wrap); clear it so
+  // the chart is drawn and measured in the visible test stage below
+  document.getElementById('app').innerHTML = '';
+  const out = document.getElementById('out'), wrap = document.getElementById('compass-wrap');
+  const lines = []; let fails = 0;
+  for (const [label, width] of [['desktop', 519], ['tablet', 420], ['phone', 330]]) {
+    wrap.style.width = width + 'px';
+    const shownNames = PolarityTest.fittedDefaults(width);
+    const defaults = FIGURES.filter(f => shownNames.includes(f.name));
+    if (label === 'desktop' && shownNames.length !== DEFAULT_FIGURES.length) {
+      fails++; lines.push(`<span class="bad">FAIL</span>  desktop should show every default, but only ${shownNames.length} of ${DEFAULT_FIGURES.length} fit`);
+    }
+    const problems = {};
+    for (let x = -10; x <= 10; x += 2.5) for (let y = -10; y <= 10; y += 2.5) {
+      const figs = defaults.slice().sort((a, b) => Math.hypot(a.econ - x, a.soc - y) - Math.hypot(b.econ - x, b.soc - y));
+      wrap.innerHTML = PolarityTest.compassSVG(x, y, figs, null);
+      const svg = wrap.querySelector('svg');
+      const dotY = {}; svg.querySelectorAll('circle[data-fig]').forEach(c => dotY[c.dataset.fig] = +c.getAttribute('cy'));
+      const labels = [...svg.querySelectorAll('text')].filter(t => t.textContent in dotY);
+      for (const n of Object.keys(dotY)) {
+        const t = labels.find(l => l.textContent === n);
+        if (!t) problems[n] = 'no label';
+        else { const b = t.getBBox(); if (Math.abs(b.y + b.height / 2 - dotY[n]) > 4) problems[n] = 'moved'; }
+      }
+    }
+    const bad = Object.entries(problems);
+    fails += bad.length;
+    lines.push(bad.length
+      ? `<span class="bad">FAIL</span>  ${label} (${width}px): ${bad.map(([n, w]) => `${n} (${w})`).join(', ')}`
+      : `<span class="ok">PASS</span>  ${label} (${width}px): shows ${defaults.length} of ${DEFAULT_FIGURES.length} defaults; every label beside its dot at all 81 positions`);
+  }
+  lines.push('', fails ? `<span class="bad">FAILED</span>` : `<span class="ok">All label checks passed.</span>`);
+  out.innerHTML = lines.join('\n');
+  document.title = (fails ? 'FAIL' : 'PASS') + ' — Polarity label checks';
+})();
+</script>
+</body>
+</html>
