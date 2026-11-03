@@ -219,7 +219,14 @@ for (const f of FIGURES) {
  * Rule: no default's label may be displaced by another default (check after moving any figure).
  */
 const DEFAULT_FIGURES = [
-  'Joseph Stalin', 'Xi Jinping', 'Adolf Hitler', 'Vladimir Putin', 'Donald Trump',
-  'Ronald Reagan', 'Barack Obama', 'Bernie Sanders', 'Mahatma Gandhi',
+  // Authoritarian Left
+  'Joseph Stalin', 'Xi Jinping', 'Fidel Castro', 'John F. Kennedy',
+  // Authoritarian Right
+  'Adolf Hitler', 'Vladimir Putin', 'Donald Trump', 'Ronald Reagan', 'Elon Musk', 'Tucker Carlson',
+  // On the horizontal axis (social 0)
+  'Barack Obama',
+  // Libertarian Left
+  'Bernie Sanders', 'Mahatma Gandhi', 'Joe Biden', 'Martin Luther King Jr.',
+  // Libertarian Right
   'Ayn Rand', 'Rand Paul', 'Joe Rogan',
 ];
