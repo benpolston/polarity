@@ -106,3 +106,49 @@ button.sm{padding:4px 10px;font-size:.82rem;border-radius:7px}
 .fp-item .dot{margin:0;flex:none}
 .fp-item .fname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fp-d{font-size:.78rem;font-variant-numeric:tabular-nums}
+
+/* "Don't know" */
+.skiprow{margin-top:10px}
+.opt.skip{width:100%;border-style:dashed;padding:10px 6px}
+.opt.skip kbd{display:inline;margin:0 8px 0 0}
+.opt.skip.sel .muted{color:#ddd}
+.c5{background:repeating-linear-gradient(45deg,#d1d5db 0 5px,#e5e7eb 5px 10px);color:#374151!important}
+.pill.skip{background:#f3f4f6;color:#4b5563}
+
+/* share / compare / shared view */
+.txt{font:inherit;font-size:.9rem;padding:8px 10px;border:1px solid var(--line);border-radius:8px;flex:1;min-width:0;background:#fff}
+#share-card .row{flex-wrap:nowrap}
+.banner{background:#fffbeb;border-color:#fcd34d;margin-top:22px}
+.dot.ring{background:#fff;border:2.5px solid #111;box-sizing:border-box}
+.cmp-topic{margin:10px 0 2px}
+.cmp-topic .dbar{margin:3px 0}
+.cmp-list li{display:block}
+details summary{margin-top:10px}
+
+/* ---------- small screens ---------- */
+@media (max-width:640px){
+  .wrap{padding:0 14px}
+  h1{margin:22px 0 8px}
+  .card{padding:16px;border-radius:12px}
+  .q-card{padding:22px 16px}
+  .q-text{font-size:1.2rem;margin-bottom:18px}
+  .opt{padding:12px 10px;text-align:left;display:flex;align-items:center;gap:10px}
+  .opt kbd{display:inline;margin:0}
+  .big{font-size:1.8rem}
+  .score-row{flex-direction:column;gap:8px}
+  .score b{font-size:1.5rem}
+  .dbar{grid-template-columns:96px 1fr 48px;gap:8px;font-size:.8rem}
+  .axislab{margin:0 56px 0 104px}
+  .figpick-bar input{width:100%;flex:1 1 100%}
+  .figpick-bar select{flex:1}
+  .figpick-list{grid-template-columns:1fr;max-height:220px}
+  .fp-item{padding:6px 0}                       /* bigger tap targets */
+  #share-card .row{flex-wrap:wrap}
+  #share-card .row button{width:100%}
+  .row button{flex:1 1 auto}
+  table{font-size:.8rem}
+  th,td{padding:6px 5px}
+  td select{max-width:110px}
+  #fig-pop{max-height:70vh;overflow:auto}
+  .wordmark b{font-size:1rem}
+}

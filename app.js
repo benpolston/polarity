@@ -1,14 +1,24 @@
 /* Compass Detailed — app logic. No dependencies. */
 (() => {
-const LABELS = ['Strongly disagree', 'Disagree', 'Neutral / unsure', 'Agree', 'Strongly agree'];
+const LABELS = ['Strongly disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly agree'];
+const SKIP_LABEL = "Don't know";
+const LABELS6 = [...LABELS, SKIP_LABEL];                 // index 5 = don't know (used by charts)
 const STORE = 'compass-detailed-v3';
+const FRIEND_STORE = 'compass-detailed-friend';
+const NAME_STORE = 'compass-detailed-name';
 const $app = document.getElementById('app');
 const $mini = document.getElementById('progress-mini');
 const QBY = Object.fromEntries(QUESTIONS.map(q => [q.id, q]));
 const CATBY = Object.fromEntries(CATS.map(c => [c.id, c]));
 
-let S = load() || null;
-if (S && (!S.order || S.order.length !== QUESTIONS.length || S.order.some(id => !QBY[id]))) S = null;  // stale save from an older question set      // {order:[ids], idx, answers:{id:{v,ms,changes,seq}}, started, finished}
+// S = your own saved test: {order:[ids], idx, secShown, answers:{id:{v,ms,changes,seq}}, started, finished}
+//     v is -2..+2, or null for "Don't know" (excluded from scoring).
+let S = load();
+if (S && (!S.order || S.order.length !== QUESTIONS.length || S.order.some(id => !QBY[id]))) S = null;  // stale save from an older question set
+// R = the result currently on screen: your own (own:true) or a shared link (own:false)
+let R = null;
+// FRIEND = someone else's answers overlaid on your results for comparison
+let FRIEND = loadFriend();
 let shownAt = 0;
 let busy = false;   // blocks double input while the next question is loading
 let tableState = { axis: '', cat: '', sec: '', text: '', sort: 'n', dir: 1 };
@@ -22,17 +32,20 @@ function save() { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch 
 function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function median(a) { if (!a.length) return 0; const s = a.slice().sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
 function dur(ms) { const s = Math.round(ms / 1000); return s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`; }
+const known = a => !!a && typeof a.v === 'number';          // answered with an opinion (not "Don't know")
+const labelOf = v => typeof v === 'number' ? LABELS[v + 2] : SKIP_LABEL;
 
 /* ---------------- scoring ---------------- */
-const eff = (q, v) => v * q.d;   // directional value, -2..+2 (+ = right / authoritarian)
+const eff = (q, v) => v * q.d;   // directional value, -2..+2 (+ = Right on economic, Authoritarian on social)
 
 // Score a subset of questions. Each axis: sum(eff) / (2 * n) * 10  => range -10..+10.
+// "Don't know" answers are left out entirely, so they never pull anyone toward the center.
 function scoreOf(filter, answers) {
   const out = { econ: 0, soc: 0, nE: 0, nS: 0 };
   let se = 0, ss = 0;
   for (const q of QUESTIONS) {
     if (filter && !filter(q)) continue;
-    const a = answers[q.id]; if (!a) continue;
+    const a = answers[q.id]; if (!known(a)) continue;
     if (q.axis === 'econ') { se += eff(q, a.v); out.nE++; } else { ss += eff(q, a.v); out.nS++; }
   }
   out.econ = out.nE ? se / (2 * out.nE) * 10 : 0;
@@ -48,15 +61,72 @@ function quadrant(e, s) {
 }
 function answered() { return S ? Object.keys(S.answers).length : 0; }
 
+/* ---------------- share links ----------------
+ * #r=<key>.<codes>[&n=<name>]
+ *   key   = fingerprint of the question set, so links from an older version are rejected, not misread
+ *   codes = one character per statement in bank order: 0..4 = strongly disagree..strongly agree, x = don't know
+ * Everything after # stays in the browser; it is never sent to the server.
+ */
+const QSET_KEY = (() => {
+  let h = 7;
+  for (const q of QUESTIONS) for (const ch of q.id + q.d) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return h.toString(36);
+})();
+function encodeAnswers(answers) {
+  return QSET_KEY + '.' + QUESTIONS.map(q => { const a = answers[q.id]; return !a ? '-' : known(a) ? String(a.v + 2) : 'x'; }).join('');
+}
+function decodeAnswers(code) {
+  const [key, codes] = String(code || '').split('.');
+  if (!codes) return { error: 'That link is incomplete. Make sure you copied the whole thing.' };
+  if (key !== QSET_KEY) return { error: 'That link was made with a different version of the test, so its answers can\'t be read correctly.' };
+  if (codes.length !== QUESTIONS.length || /[^0-4x]/.test(codes)) return { error: 'That link is damaged or incomplete.' };
+  const answers = {};
+  QUESTIONS.forEach((q, i) => { const c = codes[i]; answers[q.id] = { v: c === 'x' ? null : +c - 2, ms: 0, changes: 0, seq: i + 1 }; });
+  return { answers };
+}
+function parseShare(str) {
+  const i = String(str || '').indexOf('#');
+  const p = new URLSearchParams(i >= 0 ? str.slice(i + 1) : str);
+  if (!p.get('r')) return null;
+  const d = decodeAnswers(p.get('r'));
+  return d.error ? d : { answers: d.answers, name: (p.get('n') || '').slice(0, 40), code: p.get('r') };
+}
+function shareURL(answers, name) {
+  return location.origin + location.pathname + '#r=' + encodeAnswers(answers) + (name ? '&n=' + encodeURIComponent(name) : '');
+}
+function loadFriend() {
+  try {
+    const f = JSON.parse(localStorage.getItem(FRIEND_STORE)); if (!f) return null;
+    const d = decodeAnswers(f.code); return d.error ? null : { answers: d.answers, name: f.name || '', code: f.code };
+  } catch { return null; }
+}
+function setFriend(f) {
+  FRIEND = f;
+  try { f ? localStorage.setItem(FRIEND_STORE, JSON.stringify({ code: f.code, name: f.name })) : localStorage.removeItem(FRIEND_STORE); } catch {}
+}
+const friendName = () => (FRIEND && FRIEND.name) || 'Friend';
+const clearHash = () => { if (location.hash) history.replaceState(null, '', location.pathname + location.search); };
+
 /* ---------------- routing ---------------- */
 function render() {
   window.scrollTo(0, 0);
+  const shared = parseShare(location.hash);
+  if (shared) return shared.error ? sharedError(shared.error) : results(shared);
   if (!S) return intro();
   if (S.finished) return results();
   if (answered() === 0 && S.idx === 0 && !S.started) return intro();
   quiz();
 }
-document.getElementById('home').addEventListener('click', e => { e.preventDefault(); if (S && S.finished) results(); else if (S && S.started) quiz(); else intro(); });
+window.addEventListener('hashchange', render);
+document.getElementById('home').addEventListener('click', e => {
+  e.preventDefault(); clearHash();
+  if (S && S.finished) results(); else if (S && S.started) quiz(); else intro();
+});
+function sharedError(msg) {
+  $mini.textContent = '';
+  $app.innerHTML = `<h1>Shared result</h1><div class="card"><p>${esc(msg)}</p><button id="se-home">Go to the test</button></div>`;
+  document.getElementById('se-home').onclick = () => { clearHash(); render(); };
+}
 
 /* ---------------- intro ---------------- */
 function intro() {
@@ -72,7 +142,7 @@ function intro() {
                  : `<button id="start">Start the test</button>`}
         ${S && S.finished ? `<button class="ghost" id="seeres">View last results</button>` : ''}
       </div>
-      <p class="muted small">${SECTIONS.length} short sections, about 12–18 minutes in all. Use keys 1–5 to answer, ← to go back.</p>
+      <p class="muted small">${SECTIONS.length} short sections, about 12–18 minutes in all. Keys 1–5 answer, 0 = don't know, ← goes back.</p>
     </div>
     <div class="grid2">
       <div class="card"><h2>What you get</h2>
@@ -80,9 +150,9 @@ function intro() {
           <li>Your position, to two decimal places, on both axes</li>
           <li>Scores for all ${CATS.length} topic areas (taxes, policing, immigration, …)</li>
           <li>Every answer, how much each one moved you, and how long you took</li>
-          <li>Consistency checks on contradictory answer pairs</li>
           <li>A consistency score based on pairs of opposing statements</li>
           <li>Where political figures fall relative to you (rough estimates)</li>
+          <li>A private share link, and side-by-side comparison with a friend</li>
           <li>Edit any answer and watch the result recompute; export JSON/CSV</li>
         </ul></div>
       <div class="card"><h2>How it avoids skewing</h2>
@@ -90,7 +160,7 @@ function intro() {
           <li>Every topic has <b>exactly 4 statements pushing each way</b> (${audit.ok ? 'verified at load' : '<b>AUDIT FAILED</b>'}). Agreeing with everything lands you dead center.</li>
           <li>All statements carry equal weight.</li>
           <li>Question order is randomized within each section on every run.</li>
-          <li>A true neutral option scores exactly 0.</li>
+          <li>“Neutral” means a genuinely middle view and scores 0. <b>“Don't know” is left out of your score entirely</b>, so unfamiliar topics don't drag you toward the center.</li>
           <li>Direction of each statement is shown on the results page so nothing is hidden.</li>
         </ul></div>
     </div>`;
@@ -101,6 +171,7 @@ function intro() {
   on('seeres', () => results());
 }
 function startNew() {
+  clearHash();
   S = { order: SECTIONS.flatMap((sc, i) => shuffle(QUESTIONS.filter(q => q.sec === i).map(q => q.id))), secShown: -1, idx: 0, answers: {}, started: Date.now(), finished: null };
   save(); quiz();
 }
@@ -127,13 +198,14 @@ function quiz() {
       <div class="opts">
         ${LABELS.map((l, i) => `<button class="opt ${cur && cur.v === i - 2 ? 'sel' : ''}" data-v="${i - 2}"><kbd>${i + 1}</kbd>${l}</button>`).join('')}
       </div>
+      <div class="skiprow"><button class="opt skip ${cur && cur.v === null ? 'sel' : ''}" data-v="skip"><kbd>0</kbd>${SKIP_LABEL} <span class="muted">— not counted in your score</span></button></div>
     </div>
     <div class="nav">
       <button class="ghost" id="back" ${S.idx === 0 ? 'disabled' : ''}>← Back</button>
       <button class="ghost" id="fwd" ${cur ? '' : 'disabled'}>${S.idx === total - 1 ? 'Finish' : 'Next →'}</button>
     </div>`;
   shownAt = performance.now();
-  $app.querySelectorAll('.opt').forEach(b => b.onclick = () => answer(q, +b.dataset.v));
+  $app.querySelectorAll('.opt').forEach(b => b.onclick = () => answer(q, b.dataset.v === 'skip' ? null : +b.dataset.v));
   document.getElementById('back').onclick = back;
   document.getElementById('fwd').onclick = () => { if (!S.answers[q.id]) return; S.idx++; save(); quiz(); window.scrollTo(0, 0); };
 }
@@ -172,25 +244,28 @@ function finish() {
 }
 document.addEventListener('keydown', e => {
   if (!S || S.finished || !S.started || !$app.querySelector('.opts')) return;
+  if (e.target.closest && e.target.closest('input,select,textarea')) return;
   if (e.key >= '1' && e.key <= '5') answer(QBY[S.order[S.idx]], +e.key - 3);
+  else if (e.key === '0') answer(QBY[S.order[S.idx]], null);
   else if (e.key === 'ArrowLeft') back();
 });
 
 /* ---------------- SVG compass ---------------- */
 // exact rendered text width, measured with a hidden SVG text node so label boxes hug the text
 let _meas, _cache = {};
-function textW(str, fs) {
-  const k = fs + '|' + str; if (_cache[k]) return _cache[k];
+function textW(str, fs, weight) {
+  const k = fs + '|' + (weight || '') + '|' + str; if (_cache[k]) return _cache[k];
   if (!_meas) {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('style', 'position:absolute;visibility:hidden;width:0;height:0');
     _meas = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     svg.appendChild(_meas); document.body.appendChild(svg);
   }
-  _meas.setAttribute('font-size', fs); _meas.textContent = str;
+  _meas.setAttribute('font-size', fs); _meas.setAttribute('font-weight', weight || 'normal'); _meas.textContent = str;
   return (_cache[k] = _meas.getComputedTextLength() || str.length * 6);
 }
-function compassSVG(x, y, figs, labelNames) {
+// x,y = the person whose result this is; figs = figures to draw; friend = optional {econ, soc, name}
+function compassSVG(x, y, figs, friend) {
   const SZ = 540, SZW = 620, P = 56, W = SZ - 2 * P;   // SZW leaves a right margin so labels can sit beside right-edge dots
   const px = v => P + (v + 10) / 20 * W, py = v => P + (10 - v) / 20 * W;
   let g = '';
@@ -212,86 +287,102 @@ function compassSVG(x, y, figs, labelNames) {
   g += `<text x="${P + W / 2}" y="${P + W + 38}" text-anchor="middle" font-size="13" font-weight="700">Libertarian</text>`;
   g += `<text x="${P - 34}" y="${P + W / 2}" text-anchor="middle" font-size="13" font-weight="700" transform="rotate(-90 ${P - 34} ${P + W / 2})">Left</text>`;
   g += `<text x="${P + W + 34}" y="${P + W / 2}" text-anchor="middle" font-size="13" font-weight="700" transform="rotate(90 ${P + W + 34} ${P + W / 2})">Right</text>`;
-  if (figs) {
-    const FS = 11.5, H = 16;
-    // obstacles: every dot (and you), then labels as they get placed
-    const boxes = figs.map(f => ({ x: px(f.econ) - 4, y: py(f.soc) - 4, w: 8, h: 8, owner: f.name }));
-    boxes.push({ x: px(x) - 10, y: py(y) - 10, w: 20, h: 20, owner: '__you' });
-    const hit = (r) => boxes.some(o => r.x < o.x + o.w && r.x + r.w > o.x && r.y < o.y + o.h && r.y + r.h > o.y && o.owner !== r.owner);
-    for (const f of figs) {
-      g += `<circle cx="${px(f.econ)}" cy="${py(f.soc)}" r="3.6" fill="#374151" fill-opacity=".7" stroke="#fff" stroke-width="1"></circle><circle cx="${px(f.econ)}" cy="${py(f.soc)}" r="9" fill="transparent" data-fig="${esc(f.name)}" tabindex="0" style="cursor:help"/>`;
-    }
-    // labels: nearest-first order is the order of labelNames; try 8 positions at two distances
-    const order = labelNames ? figs.filter(f => labelNames.has(f.name)).sort((a, b) => [...labelNames].indexOf(a.name) - [...labelNames].indexOf(b.name)) : [];
-    for (const f of order) {
-      const cx = px(f.econ), cy = py(f.soc), w = textW(f.name, FS) + 3;
-      // always to the RIGHT of the dot; if blocked, slide up/down on that same side (with a leader line)
-      const tries = [0, -12, 12, -24, 24, -36, 36, -48, 48].map(dy => [cx + 7, cy - H / 2 + dy]);
-      const spot = tries.find(([tx, ty]) => tx + w <= SZW - 20 && ty >= 4 && ty + H <= SZ - 4 && !hit({ x: tx, y: ty, w, h: H, owner: f.name }));
-      if (!spot) continue;                       // no clear space: the dot's tooltip still names it
-      boxes.push({ x: spot[0], y: spot[1], w, h: H, owner: '__label' });
-      // leader line when the label isn't right beside its dot
-      const nx = Math.max(spot[0], Math.min(cx, spot[0] + w)), ny = Math.max(spot[1], Math.min(cy, spot[1] + H));
-      if (Math.hypot(nx - cx, ny - cy) > 9) g += `<line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="#111" stroke-width=".9" stroke-opacity=".85"/>`;
-      g += `<text x="${spot[0]}" y="${spot[1] + H - 4}" font-size="${FS}" fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">${esc(f.name)}</text>`;
-    }
+
+  figs = figs || [];
+  // label text is sized for the chart's real on-screen width, so names stay readable (~10px+) on phones
+  const shownW = (document.getElementById('compass-wrap') || {}).clientWidth || SZW;
+  const FS = Math.max(11.5, Math.min(20, 10.5 * SZW / shownW)), H = Math.round(FS * 1.4);
+  // obstacles: every dot (and you, and your friend), then labels as they get placed
+  const boxes = figs.map(f => ({ x: px(f.econ) - 4, y: py(f.soc) - 4, w: 8, h: 8, owner: f.name }));
+  boxes.push({ x: px(x) - 10, y: py(y) - 10, w: 20, h: 20, owner: '__you' });
+  if (friend) boxes.push({ x: px(friend.econ) - 10, y: py(friend.soc) - 10, w: 20, h: 20, owner: '__friend' });
+  const hit = r => boxes.some(o => r.x < o.x + o.w && r.x + r.w > o.x && r.y < o.y + o.h && r.y + r.h > o.y && o.owner !== r.owner);
+  for (const f of figs) {
+    g += `<circle cx="${px(f.econ)}" cy="${py(f.soc)}" r="3.6" fill="#374151" fill-opacity=".7" stroke="#fff" stroke-width="1"></circle><circle cx="${px(f.econ)}" cy="${py(f.soc)}" r="9" fill="transparent" data-fig="${esc(f.name)}" tabindex="0" style="cursor:help"/>`;
   }
+  // labels always sit to the RIGHT of their dot; if blocked, they slide up/down on that side with a leader line.
+  // Your friend's label is placed first, then figures nearest-first.
+  const labelItems = [];
+  if (friend) labelItems.push({ name: friend.name, cx: px(friend.econ), cy: py(friend.soc), gap: 12, bold: true, owner: '__friend' });
+  for (const f of figs) labelItems.push({ name: f.name, cx: px(f.econ), cy: py(f.soc), gap: 7, owner: f.name });
+  for (const L of labelItems) {
+    const w = textW(L.name, FS, L.bold ? 700 : null) + 3;
+    const tries = [0, -1, 1, -2, 2, -3, 3, -4, 4].map(k => [L.cx + L.gap, L.cy - H / 2 + k * (H - 4)]);
+    const spot = tries.find(([tx, ty]) => tx + w <= SZW - 20 && ty >= 4 && ty + H <= SZ - 4 && !hit({ x: tx, y: ty, w, h: H, owner: L.owner }));
+    if (!spot) continue;                       // no clear space: the dot still names it on hover/tap
+    boxes.push({ x: spot[0], y: spot[1], w, h: H, owner: '__label' });
+    const nx = Math.max(spot[0], Math.min(L.cx, spot[0] + w)), ny = Math.max(spot[1], Math.min(L.cy, spot[1] + H));
+    if (Math.hypot(nx - L.cx, ny - L.cy) > L.gap + 2) g += `<line x1="${L.cx}" y1="${L.cy}" x2="${nx}" y2="${ny}" stroke="#111" stroke-width=".9" stroke-opacity=".85"/>`;
+    g += `<text x="${spot[0]}" y="${spot[1] + H - FS * 0.35}" font-size="${FS}"${L.bold ? ' font-weight="700"' : ''} fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">${esc(L.name)}</text>`;
+  }
+  if (friend) g += `<circle cx="${px(friend.econ)}" cy="${py(friend.soc)}" r="8" fill="#fff" stroke="#111" stroke-width="3"/>`;
   g += `<circle cx="${px(x)}" cy="${py(y)}" r="9" fill="#111" stroke="#fff" stroke-width="2.5"/>`;
   return `<svg viewBox="0 0 ${SZW} ${SZ}" width="100%" role="img" aria-label="Political compass: economic ${fmt(x)}, social ${fmt(y)}"><g transform="translate(16 0)">${g}</g></svg>`;
 }
 
 /* ---------------- results ---------------- */
-function results() {
-  const A = S.answers;
-  const missing = QUESTIONS.filter(q => !A[q.id]);
-  if (missing.length) { S.finished = null; S.idx = S.order.findIndex(id => !A[id]); save(); return quiz(); }
-  $mini.textContent = 'Results';
+// view: undefined → your own saved results; {answers, name} → a shared link (read-only)
+function results(view) {
+  if (!view) {
+    if (!S) return intro();
+    const missing = QUESTIONS.filter(q => !S.answers[q.id]);
+    if (missing.length) { S.finished = null; S.idx = S.order.findIndex(id => !S.answers[id]); save(); return quiz(); }
+    R = { answers: S.answers, own: true };
+  } else {
+    R = { answers: view.answers, own: false, name: view.name, code: view.code };
+  }
+  const A = R.answers, own = R.own;
+  const who = own ? 'You' : (R.name || 'They');
+  $mini.textContent = own ? 'Results' : 'Shared result';
   const tot = scoreOf(null, A);
   const nE = tot.nE, nS = tot.nS;
+  const skipE = QUESTIONS.filter(q => q.axis === 'econ' && A[q.id] && !known(A[q.id])).length;
+  const skipS = QUESTIONS.filter(q => q.axis === 'soc' && A[q.id] && !known(A[q.id])).length;
 
-  // per-category scores
+  // per-category scores (null when every statement in the topic was "Don't know")
   const catScores = CATS.map(c => {
-    const s = scoreOf(q => q.cat === c.id, A);
-    return { c, v: c.axis === 'econ' ? s.econ : s.soc };
+    const s = scoreOf(q => q.cat === c.id, A), n = c.axis === 'econ' ? s.nE : s.nS;
+    return { c, n, v: n ? (c.axis === 'econ' ? s.econ : s.soc) : null };
   });
 
-  // distributions
-  const dist = f => { const d = [0, 0, 0, 0, 0]; QUESTIONS.filter(f).forEach(q => d[A[q.id].v + 2]++); return d; };
+  // distributions: indices 0..4 = the five opinions, 5 = don't know
+  const dist = f => { const d = [0, 0, 0, 0, 0, 0]; QUESTIONS.filter(f).forEach(q => d[known(A[q.id]) ? A[q.id].v + 2 : 5]++); return d; };
   const dAll = dist(() => true), dE = dist(q => q.axis === 'econ'), dS = dist(q => q.axis === 'soc');
   const stack = (d, label) => {
     const n = d.reduce((a, b) => a + b, 0);
-    return `<div class="small"><b>${label}</b> <span class="muted">(${n} answers)</span></div><div class="stack">${d.map((c, i) => c ? `<span class="c${i}" style="width:${c / n * 100}%" title="${LABELS[i]}: ${c}">${c / n > .06 ? c : ''}</span>` : '').join('')}</div>`;
+    return `<div class="small"><b>${label}</b> <span class="muted">(${n} statements)</span></div><div class="stack">${d.map((c, i) => c ? `<span class="c${i}" style="width:${c / n * 100}%" title="${LABELS6[i]}: ${c}">${c / n > .06 ? c : ''}</span>` : '').join('')}</div>`;
   };
-  const agreeN = dAll[3] + dAll[4], disN = dAll[0] + dAll[1];
+  const nKnown = QUESTIONS.filter(q => known(A[q.id])).length;
+  const agreeN = dAll[3] + dAll[4], disN = dAll[0] + dAll[1], skipN = dAll[5];
   const strongN = dAll[0] + dAll[4];
-  const avgExtremity = QUESTIONS.reduce((s, q) => s + Math.abs(A[q.id].v), 0) / QUESTIONS.length;
+  const avgExtremity = nKnown ? QUESTIONS.reduce((s, q) => s + (known(A[q.id]) ? Math.abs(A[q.id].v) : 0), 0) / nKnown : 0;
 
-  // contributions (in axis points) = eff * 5 / n
-  const contrib = QUESTIONS.map(q => ({ q, a: A[q.id], e: eff(q, A[q.id].v), pts: eff(q, A[q.id].v) * 5 / (q.axis === 'econ' ? nE : nS) }));
-  const rightPulls = ax => contrib.filter(c => c.q.axis === ax).sort((a, b) => b.pts - a.pts);
-  const topList = (ax, sign, n = 6) => rightPulls(ax).filter(c => sign > 0 ? c.pts > 0 : c.pts < 0).sort((a, b) => sign * (b.pts - a.pts)).slice(0, n);
+  // contributions (in axis points) = eff * 5 / n   — they sum exactly to the axis score
+  const contrib = QUESTIONS.filter(q => known(A[q.id])).map(q => ({ q, a: A[q.id], e: eff(q, A[q.id].v), pts: eff(q, A[q.id].v) * 5 / (q.axis === 'econ' ? nE : nS) }));
+  const topList = (ax, sign, n = 6) => contrib.filter(c => c.q.axis === ax && (sign > 0 ? c.pts > 0 : c.pts < 0)).sort((a, b) => sign * (b.pts - a.pts)).slice(0, n);
   const pullTotals = ax => {
     const cs = contrib.filter(c => c.q.axis === ax);
     return { pos: cs.filter(c => c.pts > 0).reduce((s, c) => s + c.pts, 0), neg: cs.filter(c => c.pts < 0).reduce((s, c) => s + c.pts, 0),
              nPos: cs.filter(c => c.pts > 0).length, nNeg: cs.filter(c => c.pts < 0).length, nZero: cs.filter(c => c.pts === 0).length };
   };
 
-  // pairs
+  // consistency pairs ("Don't know" on either side → pair not judged)
   const pairs = {};
   QUESTIONS.forEach(q => { if (q.p) (pairs[q.p] = pairs[q.p] || []).push(q); });
   const pairRows = Object.values(pairs).map(([a, b]) => {
+    if (!known(A[a.id]) || !known(A[b.id])) return { a, b, status: 'skip' };
     const ea = eff(a, A[a.id].v), eb = eff(b, A[b.id].v), prod = ea * eb;
     // opposite statements: consistent answers share the same sign of directional value
-    const status = prod >= 0 ? 'ok' : prod >= -2 ? 'warn' : 'bad';
-    return { a, b, ea, eb, status };
+    return { a, b, ea, eb, status: prod >= 0 ? 'ok' : prod >= -2 ? 'warn' : 'bad' };
   });
+  const judged = pairRows.filter(p => p.status !== 'skip');
   // Consistency score: each pair scores 100% unless answered on opposite sides;
   // opposite sides lose (disagreement size / 4) -- mild/mild loses 25%, strong/strong loses 100%.
-  const consistency = pairRows.reduce((t, p) => t + (1 + Math.min(0, p.ea * p.eb) / 4), 0) / pairRows.length * 100;
-  const cLabel = consistency >= 90 ? ['ok', 'highly consistent'] : consistency >= 75 ? ['ok', 'mostly consistent'] : consistency >= 60 ? ['warn', 'some contradictions'] : ['bad', 'many contradictions'];
-  const nBad = pairRows.filter(p => p.status === 'bad').length, nWarn = pairRows.filter(p => p.status === 'warn').length;
+  const consistency = judged.length ? judged.reduce((t, p) => t + (1 + Math.min(0, p.ea * p.eb) / 4), 0) / judged.length * 100 : null;
+  const cLabel = consistency === null ? ['skip', 'not enough answers'] : consistency >= 90 ? ['ok', 'highly consistent'] : consistency >= 75 ? ['ok', 'mostly consistent'] : consistency >= 60 ? ['warn', 'some contradictions'] : ['bad', 'many contradictions'];
+  const nBad = judged.filter(p => p.status === 'bad').length, nWarn = judged.filter(p => p.status === 'warn').length, nSkipPairs = pairRows.length - judged.length;
 
-  // timing
+  // timing (own results only; share links carry answers, not timings)
   const times = QUESTIONS.map(q => ({ q, ms: A[q.id].ms, ch: A[q.id].changes }));
   const totalMs = times.reduce((s, t) => s + t.ms, 0), medMs = median(times.map(t => t.ms));
   const changes = times.reduce((s, t) => s + t.ch, 0);
@@ -299,11 +390,17 @@ function results() {
 
   const pt = tot, quad = quadrant(pt.econ, pt.soc);
   const eT = pullTotals('econ'), sT = pullTotals('soc');
+  const showFriend = own && FRIEND;
+  const savedName = (() => { try { return localStorage.getItem(NAME_STORE) || ''; } catch { return ''; } })();
 
   $app.innerHTML = `
-  <h1>Your results</h1>
+  ${own ? '' : `<div class="card banner noprint"><div><b>You're viewing ${R.name ? esc(R.name) + "'s" : 'a'} shared result.</b> On this page, “you” refers to ${R.name ? esc(R.name) : 'the person who shared it'}. Nothing here is saved to your browser.</div>
+    <div class="row" style="margin-top:10px">
+      ${S && S.finished ? `<button id="sh-compare">Compare with my results</button><button class="ghost" id="sh-mine">See my results</button>` : `<button id="sh-take">Take the test yourself</button>`}
+    </div></div>`}
+  <h1>${own ? 'Your results' : esc(R.name ? R.name + "'s results" : 'Shared results')}</h1>
   <div class="hero">
-    <div class="card" style="margin-top:0"><div id="compass-wrap">${compassSVG(pt.econ, pt.soc)}</div>
+    <div class="card" style="margin-top:0"><div id="compass-wrap"></div>
       <div class="figpick noprint">
         <div class="figpick-bar">
           <b>Figures on chart</b>
@@ -317,79 +414,89 @@ function results() {
         </div>
         <div id="fp-list" class="figpick-list"></div>
       </div>
-      <div class="legend"><span><span class="dot" style="background:#111"></span>You</span></div></div>
+      <div class="legend"><span><span class="dot" style="background:#111"></span>${own ? 'You' : esc(R.name || 'Shared result')}</span>${showFriend ? `<span><span class="dot ring"></span>${esc(friendName())}</span>` : ''}</div></div>
     <div>
       <div class="card" style="margin-top:0">
         <div class="big">${quad}</div>
         <p class="muted">${describe(pt.econ) === 'near the center' ? 'Economically near the center' : 'Economically <b>' + describe(pt.econ) + ' ' + (pt.econ >= 0 ? 'right' : 'left') + '</b>'},
         ${describe(pt.soc) === 'near the center' ? 'socially near the center' : 'socially <b>' + describe(pt.soc) + ' ' + (pt.soc >= 0 ? 'authoritarian' : 'libertarian') + '</b>'}.</p>
         <div class="score-row">
-          <div class="score"><small>Economic</small><b>${fmt(pt.econ)}</b><small>${pt.econ >= 0 ? 'Right' : 'Left'} · ${nE} answers</small></div>
-          <div class="score"><small>Social</small><b>${fmt(pt.soc)}</b><small>${pt.soc >= 0 ? 'Authoritarian' : 'Libertarian'} · ${nS} answers</small></div>
+          <div class="score"><small>Economic</small><b>${nE ? fmt(pt.econ) : 'n/a'}</b><small>${pt.econ >= 0 ? 'Right' : 'Left'} · ${nE} counted${skipE ? ` · ${skipE} don't know` : ''}</small></div>
+          <div class="score"><small>Social</small><b>${nS ? fmt(pt.soc) : 'n/a'}</b><small>${pt.soc >= 0 ? 'Authoritarian' : 'Libertarian'} · ${nS} counted${skipS ? ` · ${skipS} don't know` : ''}</small></div>
         </div>
-        <p class="small muted">Scale −10 to +10. Each score = (sum of your directional answers) ÷ (2 × number of statements) × 10, so ±10 means you strongly agreed with every statement in one direction.</p>
+        <p class="small muted">Scale −10 to +10. Each score = (sum of directional answers) ÷ (2 × statements counted) × 10, so ±10 means strongly agreeing with every statement in one direction. “Don't know” answers aren't counted.</p>
         <div class="row noprint">
           <button id="x-json">Export JSON</button><button class="ghost" id="x-csv">Export CSV</button><button class="ghost" id="x-print">Print</button><button class="ghost" id="x-copy">Copy summary</button>
         </div>
-        <div class="row noprint" style="margin-top:8px"><button class="ghost" id="x-new">Retake test</button></div>
+        ${own ? `<div class="row noprint" style="margin-top:8px"><button class="ghost" id="x-new">Retake test</button></div>` : ''}
       </div>
       <div class="card">
         <h2>Consistency score</h2>
-        <div class="big">${consistency.toFixed(0)}% <span class="pill ${cLabel[0]}">${cLabel[1]}</span></div>
-        <p class="small muted">Based on ${pairRows.length} pairs of opposite statements. Answering opposites on opposite sides costs points in proportion to how strongly you did so; neutral answers never cost anything. Details are in the consistency check below.</p>
+        <div class="big">${consistency === null ? 'n/a' : consistency.toFixed(0) + '%'} <span class="pill ${cLabel[0]}">${cLabel[1]}</span></div>
+        <p class="small muted">Based on ${judged.length} pairs of opposite statements${nSkipPairs ? ` (${nSkipPairs} skipped because of “Don't know”)` : ''}. Answering opposites on opposite sides costs points in proportion to how strongly you did so; neutral answers never cost anything.</p>
       </div>
+      ${own ? `<div class="card noprint" id="share-card">
+        <h2>Share &amp; compare</h2>
+        <label class="small muted" for="sh-name">Name to show on your link (optional)</label>
+        <div class="row"><input id="sh-name" class="txt" maxlength="40" placeholder="e.g. Sam" value="${esc(savedName)}"></div>
+        <div class="row" style="margin-top:8px"><input id="sh-link" class="txt" readonly><button id="sh-copy">Copy link</button></div>
+        <p class="small muted">The link contains your answers (not your timings). Anyone with it can see this results page.</p>
+        <h3>Compare with a friend</h3>
+        ${showFriend ? `<p class="small">Comparing with <b>${esc(friendName())}</b>. <button class="ghost sm" id="cmp-clear">Remove comparison</button></p>` : ''}
+        <div class="row"><input id="cmp-link" class="txt" placeholder="Paste their share link"><button class="ghost" id="cmp-go">Compare</button></div>
+        <p class="small" id="cmp-err" style="color:#991b1b"></p>
+      </div>` : ''}
     </div>
   </div>
+
+  ${showFriend ? compareCard(pt, A, FRIEND) : ''}
 
   ${figuresCard()}
 
   <div class="card"><h2>Scores by topic</h2>
-    <p class="small muted">Each topic is scored on the same −10…+10 scale from its 8 statements.</p>
+    <p class="small muted">Each topic is scored on the same −10…+10 scale from its 8 statements (minus any “Don't know”).</p>
     ${['econ', 'soc'].map(ax => `
       <h3>${AXES[ax].name} axis</h3>
       <div class="axislab"><span>← ${AXES[ax].negShort}</span><span>${AXES[ax].posShort} →</span></div>
-      ${catScores.filter(s => s.c.axis === ax).map(s => `
-        <div class="dbar"><span>${s.c.name}</span>
-          <div class="dtrack"><div class="dfill" style="${s.v >= 0 ? 'left:50%' : 'right:50%'};width:${Math.abs(s.v) * 5}%;background:${ax === 'econ' ? (s.v >= 0 ? 'var(--right)' : 'var(--left)') : (s.v >= 0 ? 'var(--auth)' : 'var(--lib)')}"></div></div>
-          <span class="dval">${fmt(s.v, 1)}</span></div>`).join('')}`).join('')}
+      ${catScores.filter(s => s.c.axis === ax).map(s => topicBar(s.c.name, s.v, ax, s.n < 8 ? `${s.n} of 8 counted` : '')).join('')}`).join('')}
   </div>
 
   <div class="grid2">
-    <div class="card"><h2>What moved your economic score</h2>
-      <p class="small">Points toward Right: <b>+${eT.pos.toFixed(2)}</b> (${eT.nPos} answers) · toward Left: <b>${fmtS(eT.neg)}</b> (${eT.nNeg} answers) · neutral: ${eT.nZero}. Net = ${fmt(pt.econ)}.</p>
+    <div class="card"><h2>What moved the economic score</h2>
+      <p class="small">Points toward Right: <b>+${eT.pos.toFixed(2)}</b> (${eT.nPos} answers) · toward Left: <b>${fmtS(eT.neg)}</b> (${eT.nNeg} answers) · neutral: ${eT.nZero}${skipE ? ` · don't know: ${skipE}` : ''}. Net = ${fmt(pt.econ)}.</p>
       <h3>Biggest pulls to the Right</h3>${pullList(topList('econ', +1))}
       <h3>Biggest pulls to the Left</h3>${pullList(topList('econ', -1))}</div>
-    <div class="card"><h2>What moved your social score</h2>
-      <p class="small">Points toward Authoritarian: <b>+${sT.pos.toFixed(2)}</b> (${sT.nPos} answers) · toward Libertarian: <b>${fmtS(sT.neg)}</b> (${sT.nNeg} answers) · neutral: ${sT.nZero}. Net = ${fmt(pt.soc)}.</p>
+    <div class="card"><h2>What moved the social score</h2>
+      <p class="small">Points toward Authoritarian: <b>+${sT.pos.toFixed(2)}</b> (${sT.nPos} answers) · toward Libertarian: <b>${fmtS(sT.neg)}</b> (${sT.nNeg} answers) · neutral: ${sT.nZero}${skipS ? ` · don't know: ${skipS}` : ''}. Net = ${fmt(pt.soc)}.</p>
       <h3>Biggest pulls to Authoritarian</h3>${pullList(topList('soc', +1))}
       <h3>Biggest pulls to Libertarian</h3>${pullList(topList('soc', -1))}</div>
   </div>
 
-  <div class="card"><h2>How you answered</h2>
-    <div class="row small muted" style="gap:14px"><span><span class="dot c0"></span>Strongly disagree</span><span><span class="dot c1"></span>Disagree</span><span><span class="dot c2"></span>Neutral</span><span><span class="dot c3"></span>Agree</span><span><span class="dot c4"></span>Strongly agree</span></div>
+  <div class="card"><h2>How ${own ? 'you' : 'they'} answered</h2>
+    <div class="row small muted" style="gap:14px">${LABELS6.map((l, i) => `<span><span class="dot c${i}"></span>${l}</span>`).join('')}</div>
     ${stack(dAll, 'All statements')}${stack(dE, 'Economic statements')}${stack(dS, 'Social statements')}
-    <p class="small">You agreed with <b>${agreeN}</b> and disagreed with <b>${disN}</b> statements (${dAll[2]} neutral). Because exactly half of all statements point each way, a habit of agreeing (or disagreeing) with everything cancels out rather than moving your position — ${Math.abs(agreeN - disN) > 20 ? 'you leaned noticeably toward ' + (agreeN > disN ? 'agreement' : 'disagreement') + ', which this design neutralizes.' : 'your agree/disagree balance is even.'}</p>
-    <p class="small">Strong opinions (“strongly” either way): <b>${strongN}</b> of ${QUESTIONS.length} (${(strongN / QUESTIONS.length * 100).toFixed(0)}%). Average intensity: <b>${avgExtremity.toFixed(2)}</b> of 2.00.</p>
+    <p class="small">Agreed with <b>${agreeN}</b> and disagreed with <b>${disN}</b> statements (${dAll[2]} neutral, ${skipN} don't know). Because exactly half of all statements point each way, a habit of agreeing (or disagreeing) with everything cancels out rather than moving the position — ${Math.abs(agreeN - disN) > 20 ? 'this result leans noticeably toward ' + (agreeN > disN ? 'agreement' : 'disagreement') + ', which the design neutralizes.' : 'the agree/disagree balance here is even.'}</p>
+    <p class="small">Strong opinions (“strongly” either way): <b>${strongN}</b> of ${nKnown} counted answers (${nKnown ? (strongN / nKnown * 100).toFixed(0) : 0}%). Average intensity: <b>${avgExtremity.toFixed(2)}</b> of 2.00.</p>
   </div>
 
   <div class="card"><h2>Consistency check</h2>
-    <p class="small">${pairRows.length} pairs of statements are logical opposites (e.g. “free healthcare” vs. “pay for your own”). Opposite statements should get opposite answers. <span class="pill ${nBad ? 'bad' : nWarn ? 'warn' : 'ok'}">${nBad} conflicting · ${nWarn} mild tension · ${pairRows.length - nBad - nWarn} consistent</span></p>
-    <div class="tw"><table><tr><th>Statement A</th><th>You</th><th>Statement B</th><th>You</th><th></th></tr>
-    ${pairRows.map(p => `<tr><td>${esc(p.a.t)}</td><td>${LABELS[A[p.a.id].v + 2]}</td><td>${esc(p.b.t)}</td><td>${LABELS[A[p.b.id].v + 2]}</td><td><span class="pill ${p.status}">${{ ok: 'consistent', warn: 'tension', bad: 'conflict' }[p.status]}</span></td></tr>`).join('')}
+    <p class="small">${pairRows.length} pairs of statements are logical opposites (e.g. “free healthcare” vs. “pay for your own”). Opposite statements should get opposite answers. <span class="pill ${nBad ? 'bad' : nWarn ? 'warn' : 'ok'}">${nBad} conflicting · ${nWarn} mild tension · ${judged.length - nBad - nWarn} consistent${nSkipPairs ? ` · ${nSkipPairs} skipped` : ''}</span></p>
+    <div class="tw"><table><tr><th>Statement A</th><th>Answer</th><th>Statement B</th><th>Answer</th><th></th></tr>
+    ${pairRows.map(p => `<tr><td>${esc(p.a.t)}</td><td>${labelOf(A[p.a.id].v)}</td><td>${esc(p.b.t)}</td><td>${labelOf(A[p.b.id].v)}</td><td><span class="pill ${p.status}">${{ ok: 'consistent', warn: 'tension', bad: 'conflict', skip: 'skipped' }[p.status]}</span></td></tr>`).join('')}
     </table></div>
   </div>
 
-  <div class="card"><h2>Timing &amp; hesitation</h2>
+  ${own ? `<div class="card"><h2>Timing &amp; hesitation</h2>
     <p class="small">Total time on statements: <b>${dur(totalMs)}</b> · median per statement: <b>${(medMs / 1000).toFixed(1)}s</b> · answers changed: <b>${changes}</b></p>
     <div class="grid2"><div><h3>Longest deliberation</h3><ul class="clean">${slow.map(t => `<li><span>${esc(t.q.t)}</span><span>${(t.ms / 1000).toFixed(1)}s</span></li>`).join('')}</ul></div>
     <div><h3>Fastest answers</h3><ul class="clean">${fast.map(t => `<li><span>${esc(t.q.t)}</span><span>${(t.ms / 1000).toFixed(1)}s</span></li>`).join('')}</ul></div></div>
     <h3>Time by section</h3>
     <ul class="clean">${SECTIONS.map((sc, i) => { const ts = times.filter(t => t.q.sec === i); return `<li><span>${i + 1}. ${esc(sc.title)} <span class="muted">(${ts.length} statements)</span></span><span>${dur(ts.reduce((a, t) => a + t.ms, 0))} · ${(median(ts.map(t => t.ms)) / 1000).toFixed(1)}s median</span></li>`; }).join('')}</ul>
     <p class="small muted">Fast “snap” answers and long hesitations can both flag statements where your view may be less settled.</p>
-  </div>
+  </div>` : ''}
 
   <div class="card"><h2>Every answer</h2>
-    <p class="small muted">Change any answer here and everything above recalculates. “Points” is how many axis points that answer contributed (positive = Right on economic statements, Authoritarian on social statements; negative = Left or Libertarian).</p>
+    <p class="small muted">${own ? 'Change any answer here and everything above recalculates. ' : ''}“Points” is how many axis points that answer contributed (positive = Right on economic statements, Authoritarian on social statements; negative = Left or Libertarian). “Don't know” contributes nothing.</p>
     <div class="filters noprint">
       <select id="f-axis"><option value="">All axes</option><option value="econ">Economic</option><option value="soc">Social</option></select>
       <select id="f-sec"><option value="">All sections</option>${SECTIONS.map((sc, i) => `<option value="${i}">${sc.title}</option>`).join('')}</select>
@@ -400,7 +507,7 @@ function results() {
   </div>
 
   <div class="card"><h2>Methodology &amp; balance audit</h2>
-    <p class="small">Answers map to −2…+2. Each statement has a fixed direction (shown above as “Agree →”). Directional value = answer × direction. Axis score = Σ directional value ÷ (2 × statements on that axis) × 10. Weights are all 1, and no statement belongs to both axes.</p>
+    <p class="small">Answers map to −2…+2; “Don't know” is excluded. Each statement has a fixed direction (shown above as “Agreeing pushes”). Directional value = answer × direction. Axis score = Σ directional value ÷ (2 × statements counted on that axis) × 10. Weights are all 1, and no statement belongs to both axes.</p>
     ${['econ', 'soc'].map(ax => {
       const rows = balanceAudit().rows.filter(r => r.cat.axis === ax);
       const tp = rows.reduce((t, r) => t + r.pos, 0), tn = rows.reduce((t, r) => t + r.neg, 0);
@@ -409,24 +516,92 @@ function results() {
       <tr><td><b>Total</b></td><td><b>${tp}</b></td><td><b>${tn}</b></td></tr></table></div>`;
     }).join('')}
     <p class="small">Audit: <span class="pill ${balanceAudit().ok ? 'ok' : 'bad'}">${balanceAudit().ok ? 'perfectly balanced' : 'IMBALANCED'}</span> · Sanity checks: all-neutral → (0, 0); all-agree → (0, 0); all-disagree → (0, 0).</p>
-    <p class="small muted">Limits: a short questionnaire cannot capture every view; the two axes are a simplification, and statements are phrased as the author understood common positions. Treat results as a description of your answers, not a verdict.</p>
+    <p class="small muted">Limits: a short questionnaire cannot capture every view; the two axes are a simplification, and statements are phrased as the author understood common positions. Treat results as a description of the answers, not a verdict.</p>
   </div>`;
 
   // wire up
-  document.getElementById('x-json').onclick = () => download('compass-results.json', JSON.stringify(exportData(pt, catScores, pairRows, consistency), null, 2), 'application/json');
-  document.getElementById('x-csv').onclick = () => download('compass-answers.csv', exportCSV(), 'text/csv');
-  document.getElementById('x-print').onclick = () => window.print();
-  document.getElementById('x-copy').onclick = () => {
-    const txt = `${quad}\nEconomic: ${fmt(pt.econ)} (${pt.econ >= 0 ? 'Right' : 'Left'})\nSocial: ${fmt(pt.soc)} (${pt.soc >= 0 ? 'Authoritarian' : 'Libertarian'})\n` + catScores.map(s => `${s.c.name}: ${fmt(s.v, 1)}`).join('\n');
-    navigator.clipboard.writeText(txt).then(() => { const b = document.getElementById('x-copy'); b.textContent = 'Copied'; });
+  const $ = id => document.getElementById(id);
+  $('x-json').onclick = () => download('compass-results.json', JSON.stringify(exportData(pt, catScores, pairRows, consistency), null, 2), 'application/json');
+  $('x-csv').onclick = () => download('compass-answers.csv', exportCSV(), 'text/csv');
+  $('x-print').onclick = () => window.print();
+  $('x-copy').onclick = () => {
+    const txt = `${quad}\nEconomic: ${fmt(pt.econ)} (${pt.econ >= 0 ? 'Right' : 'Left'})\nSocial: ${fmt(pt.soc)} (${pt.soc >= 0 ? 'Authoritarian' : 'Libertarian'})\n` + catScores.map(s => `${s.c.name}: ${s.v === null ? 'n/a' : fmt(s.v, 1)}`).join('\n');
+    copyText(txt, $('x-copy'));
   };
-  document.getElementById('x-new').onclick = () => { if (confirm('Discard these answers and retake the test?')) startNew(); };
+  if (own) {
+    $('x-new').onclick = () => { if (confirm('Discard these answers and retake the test?')) startNew(); };
+    const refreshLink = () => { $('sh-link').value = shareURL(S.answers, $('sh-name').value.trim()); };
+    $('sh-name').oninput = () => { try { localStorage.setItem(NAME_STORE, $('sh-name').value.trim()); } catch {} refreshLink(); };
+    $('sh-copy').onclick = () => copyText($('sh-link').value, $('sh-copy'), $('sh-link'));
+    $('sh-link').onfocus = e => e.target.select();
+    refreshLink();
+    $('cmp-go').onclick = () => {
+      const f = parseShare($('cmp-link').value.trim());
+      if (!f) { $('cmp-err').textContent = 'That doesn\'t look like a share link from this test.'; return; }
+      if (f.error) { $('cmp-err').textContent = f.error; return; }
+      setFriend(f); rerenderKeepScroll();
+    };
+    if ($('cmp-clear')) $('cmp-clear').onclick = () => { setFriend(null); rerenderKeepScroll(); };
+  } else {
+    const on = (id, fn) => { if ($(id)) $(id).onclick = fn; };
+    on('sh-take', () => { clearHash(); if (S && S.started && !S.finished) quiz(); else startNew(); });
+    on('sh-mine', () => { clearHash(); results(); window.scrollTo(0, 0); });
+    on('sh-compare', () => { setFriend({ answers: R.answers, name: R.name, code: R.code }); clearHash(); results(); window.scrollTo(0, 0); });
+  }
   for (const [id, key] of [['f-axis', 'axis'], ['f-sec', 'sec'], ['f-cat', 'cat'], ['f-text', 'text']]) {
-    const el = document.getElementById(id); el.value = tableState[key];
+    const el = $(id); el.value = tableState[key];
     el.oninput = () => { tableState[key] = el.value; drawTable(); };
   }
   drawTable();
   initFigures(pt);
+}
+function rerenderKeepScroll() { const y = window.scrollY; results(); window.scrollTo(0, y); }
+function copyText(text, btn, fallbackInput) {
+  const done = ok => { const old = btn.dataset.label || btn.textContent; btn.dataset.label = old; btn.textContent = ok ? 'Copied' : 'Press Ctrl+C'; setTimeout(() => btn.textContent = old, 1600); };
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(() => done(true), () => { fallbackInput && fallbackInput.select(); done(false); });
+  else { if (fallbackInput) fallbackInput.select(); done(false); }
+}
+
+// one row of a diverging topic bar; v may be null (all "Don't know")
+function topicBar(name, v, ax, note) {
+  const col = ax === 'econ' ? (v >= 0 ? 'var(--right)' : 'var(--left)') : (v >= 0 ? 'var(--auth)' : 'var(--lib)');
+  return `<div class="dbar"><span>${esc(name)}${note ? ` <span class="muted small">(${note})</span>` : ''}</span>
+    <div class="dtrack">${v === null ? '' : `<div class="dfill" style="${v >= 0 ? 'left:50%' : 'right:50%'};width:${Math.abs(v) * 5}%;background:${col}"></div>`}</div>
+    <span class="dval">${v === null ? 'n/a' : fmt(v, 1)}</span></div>`;
+}
+
+/* ---------------- compare with a friend ---------------- */
+function compareCard(pt, A, F) {
+  const fp = scoreOf(null, F.answers), name = esc(friendName());
+  const both = QUESTIONS.filter(q => known(A[q.id]) && known(F.answers[q.id]))
+    .map(q => ({ q, u: A[q.id].v, f: F.answers[q.id].v }));
+  const sameSide = both.filter(r => Math.sign(r.u) === Math.sign(r.f)).length;
+  const opposite = both.filter(r => r.u * r.f < 0).length;
+  const gaps = both.filter(r => Math.abs(r.u - r.f) >= 2).sort((a, b) => Math.abs(b.u - b.f) - Math.abs(a.u - a.f)).slice(0, 8);
+  const shared = both.filter(r => r.u * r.f >= 2).sort((a, b) => b.u * b.f - a.u * a.f).slice(0, 6);
+  const dist = Math.hypot(pt.econ - fp.econ, pt.soc - fp.soc);
+  const row = r => `<li><span>${esc(r.q.t)}<br><span class="muted">You: ${labelOf(r.u)} · ${name}: ${labelOf(r.f)}</span></span></li>`;
+  const pairBar = (c, ax) => {
+    const you = scoreOf(q => q.cat === c.id, A), them = scoreOf(q => q.cat === c.id, F.answers);
+    const v1 = (ax === 'econ' ? you.nE : you.nS) ? you[ax] : null, v2 = (ax === 'econ' ? them.nE : them.nS) ? them[ax] : null;
+    return `<div class="cmp-topic"><div class="small"><b>${esc(c.name)}</b></div>
+      ${topicBar('You', v1, ax)}${topicBar(friendName(), v2, ax)}</div>`;
+  };
+  return `<div class="card" id="compare"><h2>You vs. ${name}</h2>
+    <div class="score-row">
+      <div class="score"><small>You</small><b>${fmt(pt.econ, 1)}, ${fmt(pt.soc, 1)}</b><small>${quadrant(pt.econ, pt.soc)}</small></div>
+      <div class="score"><small>${name}</small><b>${fmt(fp.econ, 1)}, ${fmt(fp.soc, 1)}</b><small>${quadrant(fp.econ, fp.soc)}</small></div>
+      <div class="score"><small>Distance apart</small><b>${dist.toFixed(1)}</b><small>on the −10…+10 grid</small></div>
+    </div>
+    <p class="small">Of the <b>${both.length}</b> statements you both had a view on, you landed on the same side of <b>${sameSide}</b> (${both.length ? Math.round(sameSide / both.length * 100) : 0}%) and on opposite sides of <b>${opposite}</b>.</p>
+    <div class="grid2">
+      <div><h3>Biggest disagreements</h3>${gaps.length ? `<ul class="clean cmp-list">${gaps.map(row).join('')}</ul>` : '<p class="small muted">None — no statement more than one step apart.</p>'}</div>
+      <div><h3>Strongest shared views</h3>${shared.length ? `<ul class="clean cmp-list">${shared.map(row).join('')}</ul>` : '<p class="small muted">No strongly shared views.</p>'}</div>
+    </div>
+    <details><summary>Topic by topic</summary>
+      ${['econ', 'soc'].map(ax => `<h3>${AXES[ax].name} axis</h3><div class="axislab"><span>← ${AXES[ax].negShort}</span><span>${AXES[ax].posShort} →</span></div>${CATS.filter(c => c.axis === ax).map(c => pairBar(c, ax)).join('')}`).join('')}
+    </details>
+  </div>`;
 }
 
 /* ---------------- political figures ---------------- */
@@ -437,12 +612,12 @@ const figState = { quad: '', text: '', sort: 'dist', dir: 1, pick: '', kind: '',
 const saveSel = () => { try { localStorage.setItem(FIG_STORE, JSON.stringify([...figState.sel])); } catch {} };
 function figuresCard() {
   return `<div class="card" id="figs"><h2>Political figures</h2>
-    <p class="small muted"><b>Positions are rough editorial estimates, not measurements.</b> They are not derived from this test's questions or taken from politicalcompass.org, and many figures shifted over their careers. Distance is the straight-line gap between your position and theirs on the −10…+10 grid (the maximum possible is about 28). Edit <code>figures.js</code> to correct any placement.</p>
+    <p class="small muted"><b>Positions are rough editorial estimates, not measurements.</b> They are not derived from this test's questions or taken from politicalcompass.org, and many figures shifted over their careers. Distance is the straight-line gap between this result and theirs on the −10…+10 grid (the maximum possible is about 28). Edit <code>figures.js</code> to correct any placement.</p>
     <div class="filters noprint">
       <select id="fg-quad"><option value="">All quadrants</option>${['Authoritarian Left', 'Authoritarian Right', 'Libertarian Left', 'Libertarian Right'].map(q => `<option>${q}</option>`).join('')}</select>
       <input id="fg-text" placeholder="Search names…">
     </div>
-    <div class="grid2"><div><h3>Closest to you</h3><div id="fg-near"></div></div><div><h3>Furthest from you</h3><div id="fg-far"></div></div></div>
+    <div class="grid2"><div><h3>Closest</h3><div id="fg-near"></div></div><div><h3>Furthest</h3><div id="fg-far"></div></div></div>
     <h3>All figures</h3><div class="tw"><table id="fg-table"></table></div>
   </div>`;
 }
@@ -458,8 +633,9 @@ function figPredict(f, q) {
 function figCompare(f) {
   const same = [], diff = [];
   for (const q of QUESTIONS) {
-    const u = S.answers[q.id]?.v, p = figPredict(f, q);
-    if (!u || !p) continue;                                     // user neutral, or no guess
+    const a = R && R.answers[q.id], p = figPredict(f, q);
+    if (!known(a) || !a.v || !p) continue;                      // don't know / neutral, or no guess
+    const u = a.v;
     const row = { q, u, p, w: Math.abs(u) * Math.abs(p.v) + (p.manual ? 100 : 0) };
     (u * p.v > 0 ? same : diff).push(row);
   }
@@ -469,27 +645,52 @@ function figCompare(f) {
 const ans = v => v >= 1.4 ? 'Strongly agree' : v > 0 ? 'Agree' : v <= -1.4 ? 'Strongly disagree' : 'Disagree';
 function popHTML(f) {
   const c = figCompare(f), quad = quadrant(f.econ, f.soc);
-  const item = r => `<li>${esc(r.q.t)}<br><span class="muted">You: ${ans(r.u)} · ${esc(f.name.split(' ')[0] === f.name ? f.name : f.name.split(' ').slice(-1)[0])}: ${ans(r.p.v)}${r.p.manual ? ' ★' : ' (inferred)'}</span></li>`;
-  return `<b>${esc(f.name)}</b><div class="muted small">${quad} · est. ${fmt(f.econ, 1)} econ, ${fmt(f.soc, 1)} social</div>
-    <h4 class="ok">Likely to agree with you <span class="muted">(${c.nSame} statements)</span></h4><ul>${c.same.map(item).join('') || '<li class="muted">Nothing clear.</li>'}</ul>
-    <h4 class="bad">Likely to disagree with you <span class="muted">(${c.nDiff} statements)</span></h4><ul>${c.diff.map(item).join('') || '<li class="muted">Nothing clear.</li>'}</ul>
+  const who = R && !R.own ? esc(R.name || 'They') : 'You';
+  const short = esc(f.name.split(' ').length > 1 ? f.name.split(' ').slice(-1)[0] : f.name);
+  const item = r => `<li>${esc(r.q.t)}<br><span class="muted">${who}: ${ans(r.u)} · ${short}: ${ans(r.p.v)}${r.p.manual ? ' ★' : ' (inferred)'}</span></li>`;
+  const head = `<b>${esc(f.name)}</b><div class="muted small">${KIND_LABEL[f.kind]} · ${quad} · est. ${fmt(f.econ, 1)} econ, ${fmt(f.soc, 1)} social</div>`;
+  if (!c.nSame && !c.nDiff) {
+    const central = Math.abs(f.econ) < 2 && Math.abs(f.soc) < 2;
+    return head + `<p class="small" style="margin-top:8px">${central
+      ? `${esc(f.name)} sits too close to the center to infer specific views from position alone, and no stances have been set manually yet.`
+      : 'No overlap to show: the statements this figure has a clear lean on are ones answered neutral or “Don\'t know”.'}</p>
+      <div class="muted small">Specific stances can be added in figures.js (FIG_STANCES_RAW).</div>`;
+  }
+  return head + `
+    <h4 class="ok">Likely to agree <span class="muted">(${c.nSame} statements)</span></h4><ul>${c.same.map(item).join('') || '<li class="muted">Nothing clear.</li>'}</ul>
+    <h4 class="bad">Likely to disagree <span class="muted">(${c.nDiff} statements)</span></h4><ul>${c.diff.map(item).join('') || '<li class="muted">Nothing clear.</li>'}</ul>
     <div class="muted small">Mostly inferred from an estimated position, not documented stances. ★ = set manually in figures.js.</div>`;
 }
-let popEl;
+let popEl, popFor = null;
 function showPop(target, x, y) {
   const f = FIGURES.find(f => f.name === target.dataset.fig); if (!f) return;
   if (!popEl) { popEl = document.createElement('div'); popEl.id = 'fig-pop'; document.body.appendChild(popEl); }
-  popEl.innerHTML = popHTML(f); popEl.style.display = 'block';
+  if (popFor !== f.name || popEl.style.display !== 'block') popEl.innerHTML = popHTML(f);
+  popFor = f.name; popEl.style.display = 'block';
   const r = popEl.getBoundingClientRect();
   popEl.style.left = Math.max(8, Math.min(x + 14, innerWidth - r.width - 8)) + 'px';
   popEl.style.top = (y + 16 + r.height > innerHeight ? Math.max(8, y - r.height - 12) : y + 16) + 'px';
 }
-const hidePop = () => { if (popEl) popEl.style.display = 'none'; };
-document.addEventListener('mouseover', e => { const t = e.target.closest?.('[data-fig]'); if (t) showPop(t, e.clientX, e.clientY); });
-document.addEventListener('mousemove', e => { const t = e.target.closest?.('[data-fig]'); if (t && popEl && popEl.style.display === 'block') showPop(t, e.clientX, e.clientY); });
-document.addEventListener('mouseout', e => { if (e.target.closest?.('[data-fig]')) hidePop(); });
-document.addEventListener('focusin', e => { const t = e.target.closest?.('[data-fig]'); if (t) { const b = t.getBoundingClientRect(); showPop(t, b.left, b.bottom - 16); } });
-document.addEventListener('focusout', hidePop);
+const hidePop = () => { if (popEl) popEl.style.display = 'none'; popFor = null; };
+// Mouse: hover. Touch screens (no hover): tap a name or dot to open, tap anywhere else to close.
+// In the picker, tapping a name toggles its checkbox instead.
+const touchMode = matchMedia('(hover: none)').matches;
+if (!touchMode) {
+  document.addEventListener('mouseover', e => { const t = e.target.closest?.('[data-fig]'); if (t) showPop(t, e.clientX, e.clientY); });
+  document.addEventListener('mousemove', e => { const t = e.target.closest?.('[data-fig]'); if (t && popEl && popEl.style.display === 'block') showPop(t, e.clientX, e.clientY); });
+  document.addEventListener('mouseout', e => { if (e.target.closest?.('[data-fig]')) hidePop(); });
+  document.addEventListener('focusin', e => { const t = e.target.closest?.('[data-fig]'); if (t) { const b = t.getBoundingClientRect(); showPop(t, b.left, b.bottom - 16); } });
+  document.addEventListener('focusout', hidePop);
+} else {
+  document.addEventListener('click', e => {
+    const t = e.target.closest?.('[data-fig]');
+    if (t && !t.closest('.fp-item')) {
+      if (popFor === t.dataset.fig && popEl.style.display === 'block') return hidePop();
+      const b = t.getBoundingClientRect(); showPop(t, Math.max(0, b.left - 14), b.bottom - 8);
+    } else hidePop();
+  });
+  window.addEventListener('scroll', hidePop, { passive: true });
+}
 
 function initFigures(pt) {
   const $ = id => document.getElementById(id);
@@ -527,7 +728,9 @@ function drawPicker(pt) {
 // only the ticked figures go on the chart; nearest get first pick of label space
 function drawChartFigs(pt) {
   const picked = figsWithDist(pt).filter(f => figState.sel.has(f.name)).sort((a, b) => a.dist - b.dist);
-  document.getElementById('compass-wrap').innerHTML = compassSVG(pt.econ, pt.soc, picked.length ? picked : null, new Set(picked.map(f => f.name)));
+  let friend = null;
+  if (R && R.own && FRIEND) { const fp = scoreOf(null, FRIEND.answers); friend = { econ: fp.econ, soc: fp.soc, name: friendName() }; }
+  document.getElementById('compass-wrap').innerHTML = compassSVG(pt.econ, pt.soc, picked, friend);
 }
 function drawFigures(pt) {
   const all = figsWithDist(pt);
@@ -544,39 +747,42 @@ function drawFigures(pt) {
   const rows = shown.slice().sort((a, b) => (k(a) > k(b) ? 1 : k(a) < k(b) ? -1 : 0) * figState.dir);
   const th = (key, label) => `<th data-sort="${key}">${label}${figState.sort === key ? (figState.dir > 0 ? ' ▲' : ' ▼') : ''}</th>`;
   const t = document.getElementById('fg-table');
-  t.innerHTML = `<tr>${th('name', 'Figure')}${th('kind', 'Type')}${th('quad', 'Quadrant (est.)')}${th('econ', 'Economic')}${th('soc', 'Social')}${th('dist', 'Distance from you')}</tr>` +
+  t.innerHTML = `<tr>${th('name', 'Figure')}${th('kind', 'Type')}${th('quad', 'Quadrant (est.)')}${th('econ', 'Economic')}${th('soc', 'Social')}${th('dist', 'Distance')}</tr>` +
     rows.map(f => `<tr><td>${fname(f.name)}</td><td class="small muted">${KIND_LABEL[f.kind]}</td><td><span class="tag">${f.quad}</span></td><td>${fmt(f.econ, 1)}</td><td>${fmt(f.soc, 1)}</td><td>${f.dist.toFixed(1)}</td></tr>`).join('') +
     (rows.length ? '' : '<tr><td colspan="6" class="muted">No matching figures.</td></tr>');
   t.querySelectorAll('th[data-sort]').forEach(h => h.onclick = () => { if (figState.sort === h.dataset.sort) figState.dir *= -1; else { figState.sort = h.dataset.sort; figState.dir = 1; } drawFigures(pt); });
 }
 
-function pullList(list, ax) {
+function pullList(list) {
   if (!list.length) return '<p class="small muted">None.</p>';
-  return `<ul class="clean">${list.map(c => `<li><span>${esc(c.q.t)} <span class="muted">— ${LABELS[c.a.v + 2]}</span></span><span class="${c.pts > 0 ? 'pos' : 'neg'}-${c.q.axis[0]}">${fmt(c.pts)}</span></li>`).join('')}</ul>`;
+  return `<ul class="clean">${list.map(c => `<li><span>${esc(c.q.t)} <span class="muted">— ${labelOf(c.a.v)}</span></span><span class="${c.pts > 0 ? 'pos' : 'neg'}-${c.q.axis[0]}">${fmt(c.pts)}</span></li>`).join('')}</ul>`;
 }
 
 function drawTable() {
-  const A = S.answers, t = tableState;
-  const nE = QUESTIONS.filter(q => q.axis === 'econ').length, nS = QUESTIONS.length - nE;
+  const A = R.answers, t = tableState, own = R.own;
+  const nE = QUESTIONS.filter(q => q.axis === 'econ' && known(A[q.id])).length;
+  const nS = QUESTIONS.filter(q => q.axis === 'soc' && known(A[q.id])).length;
   let rows = QUESTIONS.map(q => {
-    const a = A[q.id], e = eff(q, a.v);
-    return { q, a, e, pts: e * 5 / (q.axis === 'econ' ? nE : nS) };
+    const a = A[q.id], e = known(a) ? eff(q, a.v) : null;
+    return { q, a, e, pts: e === null ? null : e * 5 / (q.axis === 'econ' ? nE : nS) };
   }).filter(r => (!t.axis || r.q.axis === t.axis) && (t.sec === '' || r.q.sec === +t.sec) && (!t.cat || r.q.cat === t.cat) && (!t.text || r.q.t.toLowerCase().includes(t.text.toLowerCase())));
-  const keys = { n: r => r.a.seq, shown: r => r.a.seq, topic: r => r.q.cat, v: r => r.a.v, pts: r => r.pts, ms: r => r.a.ms };
+  const num = v => v === null ? -99 : v;
+  const keys = { n: r => r.a.seq, topic: r => r.q.cat, v: r => num(r.a.v), pts: r => num(r.pts), ms: r => r.a.ms };
   const k = keys[t.sort] || keys.n;
   rows.sort((x, y) => (k(x) > k(y) ? 1 : k(x) < k(y) ? -1 : 0) * t.dir);
   const th = (key, label) => `<th data-sort="${key}">${label}${t.sort === key ? (t.dir > 0 ? ' ▲' : ' ▼') : ''}</th>`;
+  const opt = (val, label, sel) => `<option value="${val}" ${sel ? 'selected' : ''}>${label}</option>`;
   const el = document.getElementById('ans-table');
-  el.innerHTML = `<tr>${th('n', '#asked')}<th>Statement</th>${th('topic', 'Topic')}<th>Agreeing pushes</th>${th('v', 'Your answer')}${th('pts', 'Points')}${th('ms', 'Time')}</tr>` +
+  el.innerHTML = `<tr>${th('n', own ? '#asked' : '#')}<th>Statement</th>${th('topic', 'Topic')}<th>Agreeing pushes</th>${th('v', 'Answer')}${th('pts', 'Points')}${own ? th('ms', 'Time') : ''}</tr>` +
     rows.map(r => `<tr><td>${r.a.seq}</td><td>${esc(r.q.t)}</td><td><span class="tag">${CATBY[r.q.cat].name}</span></td>
       <td>${r.q.d > 0 ? AXES[r.q.axis].posShort : AXES[r.q.axis].negShort}</td>
-      <td><select data-id="${r.q.id}">${LABELS.map((l, i) => `<option value="${i - 2}" ${r.a.v === i - 2 ? 'selected' : ''}>${l}</option>`).join('')}</select></td>
-      <td class="${r.pts > 0 ? 'pos-' + r.q.axis[0] : r.pts < 0 ? 'neg-' + r.q.axis[0] : ''}">${fmt(r.pts)}</td><td>${(r.a.ms / 1000).toFixed(1)}s</td></tr>`).join('') +
+      <td>${own ? `<select data-id="${r.q.id}">${LABELS.map((l, i) => opt(i - 2, l, r.a.v === i - 2)).join('')}${opt('skip', SKIP_LABEL, !known(r.a))}</select>` : labelOf(r.a.v)}</td>
+      <td class="${r.pts > 0 ? 'pos-' + r.q.axis[0] : r.pts < 0 ? 'neg-' + r.q.axis[0] : ''}">${r.pts === null ? '<span class="muted">—</span>' : fmt(r.pts)}</td>${own ? `<td>${(r.a.ms / 1000).toFixed(1)}s</td>` : ''}</tr>`).join('') +
     (rows.length ? '' : '<tr><td colspan="7" class="muted">No matching statements.</td></tr>');
   el.querySelectorAll('th[data-sort]').forEach(h => h.onclick = () => { if (t.sort === h.dataset.sort) t.dir *= -1; else { t.sort = h.dataset.sort; t.dir = 1; } drawTable(); });
-  el.querySelectorAll('select').forEach(s => s.onchange = () => {
-    const a = A[s.dataset.id]; a.v = +s.value; a.changes++; save();
-    const y = window.scrollY; results(); window.scrollTo(0, y);
+  if (own) el.querySelectorAll('select').forEach(s => s.onchange = () => {
+    const a = A[s.dataset.id]; a.v = s.value === 'skip' ? null : +s.value; a.changes++; save();
+    rerenderKeepScroll();
     document.getElementById('ans-table').scrollIntoView({ block: 'nearest' });
   });
 }
@@ -585,23 +791,24 @@ function drawTable() {
 function exportData(pt, catScores, pairRows, consistency) {
   return {
     generated: new Date().toISOString(),
-    scale: 'axis scores range -10..+10; economic + = right/free market, social + = authoritarian',
+    source: R.own ? 'own' : 'shared link',
+    scale: 'axis scores range -10..+10; economic + = right/free market, social + = authoritarian; "don\'t know" answers are excluded',
     scores: { economic: +pt.econ.toFixed(4), social: +pt.soc.toFixed(4), quadrant: quadrant(pt.econ, pt.soc) },
-    consistencyScore: +consistency.toFixed(2),
-    topics: catScores.map(s => ({ id: s.c.id, name: s.c.name, axis: s.c.axis, score: +s.v.toFixed(4) })),
+    consistencyScore: consistency === null ? null : +consistency.toFixed(2),
+    topics: catScores.map(s => ({ id: s.c.id, name: s.c.name, axis: s.c.axis, score: s.v === null ? null : +s.v.toFixed(4), counted: s.n })),
     consistency: pairRows.map(p => ({ a: p.a.id, b: p.b.id, status: p.status })),
     answers: QUESTIONS.map(q => answerRow(q)),
   };
 }
 function answerRow(q) {
-  const a = S.answers[q.id];
+  const a = R.answers[q.id];
   return { orderAsked: a.seq, section: SECTIONS[q.sec].title, id: q.id, statement: q.t, axis: q.axis, topic: q.cat, agreeingPushes: q.d > 0 ? AXES[q.axis].posShort : AXES[q.axis].negShort,
-    answer: a.v, answerLabel: LABELS[a.v + 2], directionalValue: eff(q, a.v), timeMs: a.ms, timesChanged: a.changes };
+    answer: known(a) ? a.v : null, answerLabel: labelOf(a.v), directionalValue: known(a) ? eff(q, a.v) : null, timeMs: a.ms, timesChanged: a.changes };
 }
 function exportCSV() {
   const rows = QUESTIONS.map(answerRow);
   const cols = Object.keys(rows[0]);
-  const cell = v => `"${String(v).replace(/"/g, '""')}"`;
+  const cell = v => `"${String(v === null ? '' : v).replace(/"/g, '""')}"`;
   return [cols.join(',')].concat(rows.map(r => cols.map(c => cell(r[c])).join(','))).join('\n');
 }
 function download(name, text, type) {
