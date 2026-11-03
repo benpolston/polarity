@@ -388,7 +388,12 @@ function results(view) {
   const changes = times.reduce((s, t) => s + t.ch, 0);
   const slow = times.slice().sort((a, b) => b.ms - a.ms).slice(0, 5), fast = times.slice().sort((a, b) => a.ms - b.ms).slice(0, 5);
 
-  const pt = tot, quad = quadrant(pt.econ, pt.soc);
+  const pt = tot;
+  // an axis with zero counted answers (all "Don't know") has no direction, so don't claim one
+  const quad = nE && nS ? quadrant(pt.econ, pt.soc)
+    : nE ? (pt.econ >= 0 ? 'Right' : 'Left') + ' (social not scored)'
+    : nS ? (pt.soc >= 0 ? 'Authoritarian' : 'Libertarian') + ' (economic not scored)' : 'Not enough answers';
+  const dirE = nE ? (pt.econ >= 0 ? 'Right' : 'Left') : 'Not scored', dirS = nS ? (pt.soc >= 0 ? 'Authoritarian' : 'Libertarian') : 'Not scored';
   const eT = pullTotals('econ'), sT = pullTotals('soc');
   const showFriend = own && FRIEND;
   const savedName = (() => { try { return localStorage.getItem(NAME_STORE) || ''; } catch { return ''; } })();
@@ -418,11 +423,11 @@ function results(view) {
     <div>
       <div class="card" style="margin-top:0">
         <div class="big">${quad}</div>
-        <p class="muted">${describe(pt.econ) === 'near the center' ? 'Economically near the center' : 'Economically <b>' + describe(pt.econ) + ' ' + (pt.econ >= 0 ? 'right' : 'left') + '</b>'},
-        ${describe(pt.soc) === 'near the center' ? 'socially near the center' : 'socially <b>' + describe(pt.soc) + ' ' + (pt.soc >= 0 ? 'authoritarian' : 'libertarian') + '</b>'}.</p>
+        <p class="muted">${!nE ? 'Economic views not scored (all “Don’t know”)' : describe(pt.econ) === 'near the center' ? 'Economically near the center' : 'Economically <b>' + describe(pt.econ) + ' ' + (pt.econ >= 0 ? 'right' : 'left') + '</b>'},
+        ${!nS ? 'social views not scored (all “Don’t know”)' : describe(pt.soc) === 'near the center' ? 'socially near the center' : 'socially <b>' + describe(pt.soc) + ' ' + (pt.soc >= 0 ? 'authoritarian' : 'libertarian') + '</b>'}.</p>
         <div class="score-row">
-          <div class="score"><small>Economic</small><b>${nE ? fmt(pt.econ) : 'n/a'}</b><small>${pt.econ >= 0 ? 'Right' : 'Left'} · ${nE} counted${skipE ? ` · ${skipE} don't know` : ''}</small></div>
-          <div class="score"><small>Social</small><b>${nS ? fmt(pt.soc) : 'n/a'}</b><small>${pt.soc >= 0 ? 'Authoritarian' : 'Libertarian'} · ${nS} counted${skipS ? ` · ${skipS} don't know` : ''}</small></div>
+          <div class="score"><small>Economic</small><b>${nE ? fmt(pt.econ) : 'n/a'}</b><small>${dirE} · ${nE} counted${skipE ? ` · ${skipE} don't know` : ''}</small></div>
+          <div class="score"><small>Social</small><b>${nS ? fmt(pt.soc) : 'n/a'}</b><small>${dirS} · ${nS} counted${skipS ? ` · ${skipS} don't know` : ''}</small></div>
         </div>
         <p class="small muted">Scale −10 to +10. Each score = (sum of directional answers) ÷ (2 × statements counted) × 10, so ±10 means strongly agreeing with every statement in one direction. “Don't know” answers aren't counted.</p>
         <div class="row noprint">
