@@ -155,7 +155,7 @@ const FIG_STANCES_RAW = {
   'Bernie Sanders': [['Healthcare should be paid for entirely through taxes', 2], ['Public universities should be free', 2], ['The minimum wage should be set high enough', 2], ['Free trade with minimal tariffs', -1]],
   'Jeremy Corbyn': [['Healthcare should be paid for entirely through taxes', 2]],
   'Margaret Thatcher': [['Privatizing state-owned companies', 2]],
-  'Ron Paul': [['Possession of small amounts of drugs', 2], ['Mass surveillance of the general public', 2], ['Free trade with minimal tariffs', 2], ['A country should withdraw from international bodies', 2]],
+  'Ron Paul': [['Possession of small amounts of drugs', 2], ['Mass surveillance of the general public', 2], ['Free trade with minimal tariffs', 2], ['should withdraw from international bodies', 2]],
   'Nelson Mandela': [['The death penalty should be available', -2]],
   'Mahatma Gandhi': [['The death penalty should be available', -2]],
   'Ayn Rand': [['Abortion should be illegal in most', -2], ['Religious values should guide', -2]],

@@ -77,11 +77,11 @@ const RAW = [
   ['wel', +1, 'People should pay for their own healthcare through private insurance or savings, not through taxes.', 'health'],
   ['wel', +1, 'Welfare benefits should be time-limited and conditional on working or looking for work.', 'ubi-work'],
   ['wel', +1, 'Students and their families, not taxpayers, should pay the cost of university tuition.', 'tuition'],
-  ['wel', +1, 'State pensions should be replaced with compulsory private retirement savings accounts.'],
+  ['wel', +1, 'Social Security should be replaced with mandatory private retirement savings accounts.'],
 
   // Labor & wages
   ['lab', -1, 'The minimum wage should be set high enough to cover the living costs of a full-time worker.', 'minwage'],
-  ['lab', -1, 'Strong, powerful trade unions are good for the economy overall.'],
+  ['lab', -1, 'Strong, powerful labor unions are good for the economy overall.'],
   ['lab', -1, 'Employers should be legally required to provide paid sick leave and paid parental leave.', 'work-terms'],
   ['lab', -1, 'Executive pay should be capped at a fixed multiple of a company\'s lowest-paid worker.'],
   ['lab', +1, 'There should be no legal minimum wage.', 'minwage'],
@@ -147,24 +147,24 @@ const RAW = [
 
   // Nation & immigration
   ['nat', +1, 'Immigration levels should be sharply reduced.', 'immig'],
-  ['nat', +1, 'A country should withdraw from international bodies whenever their rules conflict with its national laws.'],
-  ['nat', +1, 'Immigrants should be required to adopt the national language and culture to gain full acceptance.'],
-  ['nat', +1, 'All young people should be required to complete a period of national service.'],
+  ['nat', +1, 'The U.S. should withdraw from international bodies whenever their rules conflict with American law.'],
+  ['nat', +1, 'Immigrants should be expected to learn English and adopt American culture to be fully accepted.'],
+  ['nat', +1, 'All young Americans should be required to complete a period of national service (military or civilian).'],
   ['nat', -1, 'Anyone who wants to live and work in another country should be free to do so, subject only to security checks.', 'immig'],
   ['nat', -1, 'People fleeing war or persecution should always be admitted.'],
-  ['nat', -1, 'International human rights law should override national laws when the two conflict.'],
+  ['nat', -1, 'International human rights law should override U.S. law when the two conflict.'],
   ['nat', -1, 'People owe no more loyalty to their own country than to people in other countries.'],
 
   // Religion & morality
   ['rel', +1, 'Religious values should guide the country\'s laws.'],
-  ['rel', +1, 'State schools should include daily prayer or religious instruction.'],
+  ['rel', +1, 'Public schools should include daily prayer or religious instruction.'],
   ['rel', +1, 'Alcohol sales should be heavily restricted on moral grounds.'],
   ['sex', +1, 'Adult pornography should be illegal.'],
   ['rel', +1, 'Society should legally prohibit behavior it considers immoral, even if it harms only the person doing it.', 'moral-law'],
   ['rel', -1, 'Government should be strictly neutral between religious and non-religious beliefs and should not fund religious institutions.'],
   ['rel', -1, 'The law should not enforce moral codes on private behavior between consenting adults.', 'moral-law'],
   ['rel', -1, 'Adults should be free to gamble with minimal government restriction.'],
-  ['rel', -1, 'Public holidays and school terms should not be built around the calendar of any one religion.'],
+  ['rel', -1, "Federal holidays and school calendars should not be built around any one religion's calendar."],
   ['sex', -1, 'Comprehensive sex education, including contraception and sexuality, should be taught in schools.', 'sexed'],
   ['sex', +1, 'Sex education in schools should teach abstinence until marriage rather than contraception.', 'sexed'],
 
@@ -172,7 +172,7 @@ const RAW = [
   ['spe', +1, 'Hate speech against groups should be a criminal offense.', 'speech'],
   ['spe', +1, 'In a crisis, a strong leader who can bypass the legislature is better than slow democratic debate.'],
   ['spe', +1, 'The government should be able to block websites and media it considers dangerous or false.'],
-  ['spe', +1, 'Burning the national flag should be illegal.'],
+  ['spe', +1, 'Burning the American flag should be illegal.'],
   ['spe', -1, 'Speech that most people find deeply offensive should be legal unless it incites imminent violence.', 'speech'],
   ['spe', -1, 'Whistleblowers who expose government secrets should be protected rather than prosecuted.'],
   ['spe', -1, 'Citizens should be able to hold disruptive public protests without prior police permission.'],
