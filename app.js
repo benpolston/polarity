@@ -14,7 +14,7 @@ const CATBY = Object.fromEntries(CATS.map(c => [c.id, c]));
 // S = your own saved test: {order:[ids], idx, secShown, answers:{id:{v,ms,changes,seq}}, started, finished}
 //     v is -2..+2, or null for "Don't know" (excluded from scoring).
 let S = load();
-if (S && (!S.order || S.order.length !== QUESTIONS.length || S.order.some(id => !QBY[id]))) S = null;  // stale save from an older question set
+if (S && (!S.order || ![QUESTIONS.length, QUICK_IDS.size].includes(S.order.length) || S.order.some(id => !QBY[id]))) S = null;  // stale save from an older question set
 // R = the result currently on screen: your own (own:true) or a shared link (own:false)
 let R = null;
 // FRIEND = someone else's answers overlaid on your results for comparison
@@ -92,8 +92,8 @@ function intro() {
     <p class="lead">${QUESTIONS.length} concrete policy statements place you on two axes: <b>economic</b> (collective ↔ free market) and <b>social</b> (libertarian ↔ authoritarian). Each statement is a specific position rather than a slogan, so people at either extreme can disagree with some of them.</p>
     <div class="card">
       <div class="row">
-        ${resume ? `<button id="resume">Resume (${answered()}/${QUESTIONS.length} answered)</button><button class="ghost" id="restart">Start over</button>`
-                 : `<button id="start">Start the test</button>`}
+        ${resume ? `<button id="resume">Resume (${answered()}/${S.order.length} answered)</button><button class="ghost" id="restart">Start over</button>`
+                 : `<button id="start">Full test (${QUESTIONS.length} statements)</button><button class="ghost" id="start-quick">Quick test (${QUICK_IDS.size})</button>`}
         ${S && S.finished ? `<button class="ghost" id="seeres">View last results</button>` : ''}
       </div>
       <p class="muted small">${SECTIONS.length} short sections, about 12–18 minutes in all. Keys 1–5 answer, 0 = don't know, ← goes back.</p>
@@ -119,20 +119,23 @@ function intro() {
         </ul></div>
     </div>`;
   const on = (id, f) => { const el = document.getElementById(id); if (el) el.onclick = f; };
-  on('start', startNew);
-  on('restart', () => { if (confirm('Discard your saved progress and start over?')) startNew(); });
+  on('start', () => startNew('full'));
+  on('start-quick', () => startNew('quick'));
+  on('restart', () => { if (confirm('Discard your saved progress and start over?')) startNew(S.mode || 'full'); });
   on('resume', () => { shownAt = 0; quiz(); });
   on('seeres', () => results());
 }
-function startNew() {
+// mode 'quick' asks the balanced 52-statement subset (2 each way per topic); 'full' asks all 104.
+function startNew(mode = 'full') {
   clearHash();
-  S = { order: SECTIONS.flatMap((sc, i) => shuffle(QUESTIONS.filter(q => q.sec === i).map(q => q.id))), secShown: -1, idx: 0, answers: {}, started: Date.now(), finished: null };
+  const pool = mode === 'quick' ? QUESTIONS.filter(q => QUICK_IDS.has(q.id)) : QUESTIONS;
+  S = { mode, order: SECTIONS.flatMap((sc, i) => shuffle(pool.filter(q => q.sec === i).map(q => q.id))), secShown: -1, idx: 0, answers: {}, started: Date.now(), finished: null };
   save(); quiz();
 }
 
 /* ---------------- quiz ---------------- */
 function quiz() {
-  const total = QUESTIONS.length;
+  const total = S.order.length;
   if (S.idx >= total) {
     const firstMissing = S.order.findIndex(id => !S.answers[id]);
     if (firstMissing === -1) return finish();
@@ -147,7 +150,7 @@ function quiz() {
   $app.innerHTML = `
     <div class="bar"><i style="width:${(S.idx / total * 100).toFixed(1)}%"></i></div>
     <div class="card q-card">
-      <div class="q-num">${sec.title} · statement ${S.order.slice(0, S.idx + 1).filter(id => QBY[id].sec === q.sec).length} of ${QUESTIONS.filter(x => x.sec === q.sec).length}</div>
+      <div class="q-num">${sec.title} · statement ${S.order.slice(0, S.idx + 1).filter(id => QBY[id].sec === q.sec).length} of ${S.order.filter(id => QBY[id].sec === q.sec).length}</div>
       <p class="q-text">${esc(q.t)}</p>
       <div class="opts">
         ${LABELS.map((l, i) => `<button class="opt ${cur && cur.v === i - 2 ? 'sel' : ''}" data-v="${i - 2}"><kbd>${i + 1}</kbd>${l}</button>`).join('')}
@@ -164,10 +167,10 @@ function quiz() {
   document.getElementById('fwd').onclick = () => { if (!S.answers[q.id]) return; S.idx++; save(); quiz(); window.scrollTo(0, 0); };
 }
 function sectionIntro(i) {
-  const sec = SECTIONS[i], n = QUESTIONS.filter(q => q.sec === i).length;
+  const sec = SECTIONS[i], n = S.order.filter(id => QBY[id].sec === i).length;
   $mini.textContent = `Section ${i + 1}/${SECTIONS.length}`;
   $app.innerHTML = `
-    <div class="bar"><i style="width:${(S.idx / QUESTIONS.length * 100).toFixed(1)}%"></i></div>
+    <div class="bar"><i style="width:${(S.idx / S.order.length * 100).toFixed(1)}%"></i></div>
     <div class="card q-card">
       <div class="q-num">Section ${i + 1} of ${SECTIONS.length}</div>
       <p class="q-text" style="font-size:1.9rem">${esc(sec.title)}</p>
@@ -188,7 +191,7 @@ function answer(q, v) {
   else S.answers[q.id] = { v, ms, changes: 0, seq: Object.keys(S.answers).length + 1 };
   S.started = S.started || Date.now();
   S.idx++;
-  if (answered() >= QUESTIONS.length) S.idx = QUESTIONS.length;
+  if (S.order.every(id => S.answers[id])) S.idx = S.order.length;
   save();
   setTimeout(() => quiz(), 120);
 }
@@ -284,40 +287,42 @@ function compassSVG(x, y, figs, friend, opts = {}) {
 function results(view) {
   if (!view) {
     if (!S) return intro();
-    const missing = QUESTIONS.filter(q => !S.answers[q.id]);
+    const missing = S.order.filter(id => !S.answers[id]);
     if (missing.length) { S.finished = null; S.idx = S.order.findIndex(id => !S.answers[id]); save(); return quiz(); }
     R = { answers: S.answers, own: true };
   } else {
     R = { answers: view.answers, own: false, name: view.name, code: view.code };
   }
   const A = R.answers, own = R.own;
+  const QS = QUESTIONS.filter(q => A[q.id]);           // statements this person was asked (52 in a quick test)
+  const isQuick = QS.length < QUESTIONS.length;
   const who = own ? 'You' : (R.name || 'They');
   $mini.textContent = own ? 'Results' : 'Shared result';
   const tot = scoreOf(null, A);
   const nE = tot.nE, nS = tot.nS;
-  const skipE = QUESTIONS.filter(q => q.axis === 'econ' && A[q.id] && !known(A[q.id])).length;
-  const skipS = QUESTIONS.filter(q => q.axis === 'soc' && A[q.id] && !known(A[q.id])).length;
+  const skipE = QS.filter(q => q.axis === 'econ' && A[q.id] && !known(A[q.id])).length;
+  const skipS = QS.filter(q => q.axis === 'soc' && A[q.id] && !known(A[q.id])).length;
 
   // per-category scores (null when every statement in the topic was "Don't know")
   const catScores = CATS.map(c => {
     const s = scoreOf(q => q.cat === c.id, A), n = c.axis === 'econ' ? s.nE : s.nS;
-    return { c, n, v: n ? (c.axis === 'econ' ? s.econ : s.soc) : null };
+    return { c, n, asked: QS.filter(q => q.cat === c.id).length, v: n ? (c.axis === 'econ' ? s.econ : s.soc) : null };
   });
 
   // distributions: indices 0..4 = the five opinions, 5 = don't know
-  const dist = f => { const d = [0, 0, 0, 0, 0, 0]; QUESTIONS.filter(f).forEach(q => d[known(A[q.id]) ? A[q.id].v + 2 : 5]++); return d; };
+  const dist = f => { const d = [0, 0, 0, 0, 0, 0]; QS.filter(f).forEach(q => d[known(A[q.id]) ? A[q.id].v + 2 : 5]++); return d; };
   const dAll = dist(() => true), dE = dist(q => q.axis === 'econ'), dS = dist(q => q.axis === 'soc');
   const stack = (d, label) => {
     const n = d.reduce((a, b) => a + b, 0);
     return `<div class="small"><b>${label}</b> <span class="muted">(${n} statements)</span></div><div class="stack">${d.map((c, i) => c ? `<span class="c${i}" style="width:${c / n * 100}%" title="${LABELS6[i]}: ${c}">${c / n > .06 ? c : ''}</span>` : '').join('')}</div>`;
   };
-  const nKnown = QUESTIONS.filter(q => known(A[q.id])).length;
+  const nKnown = QS.filter(q => known(A[q.id])).length;
   const agreeN = dAll[3] + dAll[4], disN = dAll[0] + dAll[1], skipN = dAll[5];
   const strongN = dAll[0] + dAll[4];
-  const avgExtremity = nKnown ? QUESTIONS.reduce((s, q) => s + (known(A[q.id]) ? Math.abs(A[q.id].v) : 0), 0) / nKnown : 0;
+  const avgExtremity = nKnown ? QS.reduce((s, q) => s + (known(A[q.id]) ? Math.abs(A[q.id].v) : 0), 0) / nKnown : 0;
 
   // contributions (in axis points) = eff * 5 / n   — they sum exactly to the axis score
-  const contrib = QUESTIONS.filter(q => known(A[q.id])).map(q => ({ q, a: A[q.id], e: eff(q, A[q.id].v), pts: eff(q, A[q.id].v) * 5 / (q.axis === 'econ' ? nE : nS) }));
+  const contrib = QS.filter(q => known(A[q.id])).map(q => ({ q, a: A[q.id], e: eff(q, A[q.id].v), pts: eff(q, A[q.id].v) * 5 / (q.axis === 'econ' ? nE : nS) }));
   const topList = (ax, sign, n = 6) => contrib.filter(c => c.q.axis === ax && (sign > 0 ? c.pts > 0 : c.pts < 0)).sort((a, b) => sign * (b.pts - a.pts)).slice(0, n);
   const pullTotals = ax => {
     const cs = contrib.filter(c => c.q.axis === ax);
@@ -327,8 +332,8 @@ function results(view) {
 
   // consistency pairs ("Don't know" on either side → pair not judged)
   const pairs = {};
-  QUESTIONS.forEach(q => { if (q.p) (pairs[q.p] = pairs[q.p] || []).push(q); });
-  const pairRows = Object.values(pairs).map(([a, b]) => {
+  QS.forEach(q => { if (q.p) (pairs[q.p] = pairs[q.p] || []).push(q); });
+  const pairRows = Object.values(pairs).filter(p => p.length === 2).map(([a, b]) => {
     if (!known(A[a.id]) || !known(A[b.id])) return { a, b, status: 'skip' };
     const ea = eff(a, A[a.id].v), eb = eff(b, A[b.id].v), prod = ea * eb;
     // opposite statements: consistent answers share the same sign of directional value
@@ -342,7 +347,7 @@ function results(view) {
   const nBad = judged.filter(p => p.status === 'bad').length, nWarn = judged.filter(p => p.status === 'warn').length, nSkipPairs = pairRows.length - judged.length;
 
   // timing (own results only; share links carry answers, not timings)
-  const times = QUESTIONS.map(q => ({ q, ms: A[q.id].ms, ch: A[q.id].changes }));
+  const times = QS.map(q => ({ q, ms: A[q.id].ms, ch: A[q.id].changes }));
   const totalMs = times.reduce((s, t) => s + t.ms, 0), medMs = median(times.map(t => t.ms));
   const changes = times.reduce((s, t) => s + t.ch, 0);
   const slow = times.slice().sort((a, b) => b.ms - a.ms).slice(0, 5), fast = times.slice().sort((a, b) => a.ms - b.ms).slice(0, 5);
@@ -363,6 +368,9 @@ function results(view) {
       ${S && S.finished ? `<button id="sh-compare">Compare with my results</button><button class="ghost" id="sh-mine">See my results</button>` : `<button id="sh-take">Take the test yourself</button>`}
     </div></div>`}
   <h1>${own ? 'Your results' : esc(R.name ? R.name + "'s results" : 'Shared results')}</h1>
+  ${isQuick ? `<div class="card banner noprint"><b>${own ? 'You took' : 'This is from'} the quick test (${QS.length} statements).</b>
+    It's balanced the same way as the full test, but with half the statements the result is less precise.
+    ${own ? `<div class="row" style="margin-top:10px"><button id="go-full">Answer the other ${QUESTIONS.length - QS.length} for the full result</button></div>` : ''}</div>` : ''}
   <div class="hero">
     <div class="card" style="margin-top:0"><div id="compass-wrap"></div>
       <div class="figpick noprint">
@@ -417,11 +425,11 @@ function results(view) {
   ${figuresCard()}
 
   <div class="card"><h2>Scores by topic</h2>
-    <p class="small muted">Each topic is scored on the same −10…+10 scale from its 8 statements (minus any “Don't know”).</p>
+    <p class="small muted">Each topic is scored on the same −10…+10 scale from its ${isQuick ? '4' : '8'} statements (minus any “Don't know”).</p>
     ${['econ', 'soc'].map(ax => `
       <h3>${AXES[ax].name} axis</h3>
       <div class="axislab"><span>← ${AXES[ax].negShort}</span><span>${AXES[ax].posShort} →</span></div>
-      ${catScores.filter(s => s.c.axis === ax).map(s => topicBar(s.c.name, s.v, ax, s.n < 8 ? `${s.n} of 8 counted` : '')).join('')}`).join('')}
+      ${catScores.filter(s => s.c.axis === ax).map(s => topicBar(s.c.name, s.v, ax, s.n < s.asked ? `${s.n} of ${s.asked} counted` : '')).join('')}`).join('')}
   </div>
 
   <div class="grid2">
@@ -490,6 +498,13 @@ function results(view) {
   $('x-copy').onclick = () => {
     const txt = `${quad}\nEconomic: ${fmt(pt.econ)} (${pt.econ >= 0 ? 'Right' : 'Left'})\nSocial: ${fmt(pt.soc)} (${pt.soc >= 0 ? 'Authoritarian' : 'Libertarian'})\n` + catScores.map(s => `${s.c.name}: ${s.v === null ? 'n/a' : fmt(s.v, 1)}`).join('\n');
     copyText(txt, $('x-copy'));
+  };
+  if (own && $('go-full')) $('go-full').onclick = () => {
+    // keep every answer; add the remaining statements, grouped by section and shuffled within each
+    const rest = QUESTIONS.filter(q => !S.order.includes(q.id));
+    S.order = S.order.concat(SECTIONS.flatMap((sc, i) => shuffle(rest.filter(q => q.sec === i).map(q => q.id))));
+    S.mode = 'full'; S.finished = null; S.secShown = -1;
+    S.idx = S.order.findIndex(id => !S.answers[id]); save(); quiz(); window.scrollTo(0, 0);
   };
   if (own) {
     $('x-new').onclick = () => { if (confirm('Discard these answers and retake the test?')) startNew(); };
@@ -748,7 +763,7 @@ function drawTable() {
   const A = R.answers, t = tableState, own = R.own;
   const nE = QUESTIONS.filter(q => q.axis === 'econ' && known(A[q.id])).length;
   const nS = QUESTIONS.filter(q => q.axis === 'soc' && known(A[q.id])).length;
-  let rows = QUESTIONS.map(q => {
+  let rows = QUESTIONS.filter(q => A[q.id]).map(q => {
     const a = A[q.id], e = known(a) ? eff(q, a.v) : null;
     return { q, a, e, pts: e === null ? null : e * 5 / (q.axis === 'econ' ? nE : nS) };
   }).filter(r => (!t.axis || r.q.axis === t.axis) && (t.sec === '' || r.q.sec === +t.sec) && (!t.cat || r.q.cat === t.cat) && (!t.text || r.q.t.toLowerCase().includes(t.text.toLowerCase())));
@@ -783,7 +798,8 @@ function exportData(pt, catScores, pairRows, consistency) {
     consistencyScore: consistency === null ? null : +consistency.toFixed(2),
     topics: catScores.map(s => ({ id: s.c.id, name: s.c.name, axis: s.c.axis, score: s.v === null ? null : +s.v.toFixed(4), counted: s.n })),
     consistency: pairRows.map(p => ({ a: p.a.id, b: p.b.id, status: p.status })),
-    answers: QUESTIONS.map(q => answerRow(q)),
+    answers: QUESTIONS.filter(q => R.answers[q.id]).map(q => answerRow(q)),
+    test: QUESTIONS.every(q => R.answers[q.id]) ? 'full' : 'quick',
   };
 }
 function answerRow(q) {
@@ -792,7 +808,7 @@ function answerRow(q) {
     answer: known(a) ? a.v : null, answerLabel: labelOf(a.v), directionalValue: known(a) ? eff(q, a.v) : null, timeMs: a.ms, timesChanged: a.changes };
 }
 function exportCSV() {
-  const rows = QUESTIONS.map(answerRow);
+  const rows = QUESTIONS.filter(q => R.answers[q.id]).map(answerRow);
   const cols = Object.keys(rows[0]);
   const cell = v => `"${String(v === null ? '' : v).replace(/"/g, '""')}"`;
   return [cols.join(',')].concat(rows.map(r => cols.map(c => cell(r[c])).join(','))).join('\n');
