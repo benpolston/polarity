@@ -1,21 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Compass Detailed logo">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Polarity logo">
+  <!-- Quadrant mark: also used as the "o" in the Polarity wordmark.
+       No position dot on purpose: any dot would imply a political lean. -->
   <defs>
-    <clipPath id="r"><rect x="2" y="2" width="60" height="60" rx="14"/></clipPath>
+    <clipPath id="c"><circle cx="32" cy="32" r="27.5"/></clipPath>
   </defs>
-  <g clip-path="url(#r)">
-    <rect x="2"  y="2"  width="30" height="30" fill="#ef8f8f"/>
-    <rect x="32" y="2"  width="30" height="30" fill="#8fb4f2"/>
-    <rect x="2"  y="32" width="30" height="30" fill="#93d493"/>
-    <rect x="32" y="32" width="30" height="30" fill="#bf9fe8"/>
-    <!-- fine grid -->
-    <g stroke="#fff" stroke-opacity=".45" stroke-width="1">
-      <line x1="17" y1="2" x2="17" y2="62"/><line x1="47" y1="2" x2="47" y2="62"/>
-      <line x1="2" y1="17" x2="62" y2="17"/><line x1="2" y1="47" x2="62" y2="47"/>
-    </g>
-    <!-- axes -->
-    <line x1="32" y1="2" x2="32" y2="62" stroke="#1d1f24" stroke-width="2.4"/>
-    <line x1="2" y1="32" x2="62" y2="32" stroke="#1d1f24" stroke-width="2.4"/>
+  <g clip-path="url(#c)">
+    <rect x="0"  y="0"  width="32" height="32" fill="#ef8f8f"/>
+    <rect x="32" y="0"  width="32" height="32" fill="#8fb4f2"/>
+    <rect x="0"  y="32" width="32" height="32" fill="#93d493"/>
+    <rect x="32" y="32" width="32" height="32" fill="#bf9fe8"/>
+    <line x1="32" y1="0" x2="32" y2="64" stroke="#1d1f24" stroke-width="5"/>
+    <line x1="0" y1="32" x2="64" y2="32" stroke="#1d1f24" stroke-width="5"/>
   </g>
-  <rect x="2" y="2" width="60" height="60" rx="14" fill="none" stroke="#1d1f24" stroke-width="2.4"/>
-  <!-- no position marker on purpose: any dot would imply a political lean -->
+  <circle cx="32" cy="32" r="27.5" fill="none" stroke="#1d1f24" stroke-width="7"/>
 </svg>

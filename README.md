@@ -1,4 +1,4 @@
-# Compass Detailed
+# Polarity
 
 A two-axis political test (economic left–right, social libertarian–authoritarian) with
 104 balanced policy statements and a detailed results page. Static site: plain HTML/CSS/JS,

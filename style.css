@@ -8,11 +8,10 @@ body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,-ap
 .wrap{max-width:960px;margin:0 auto;padding:0 20px}
 .top{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
 .top .wrap{display:flex;justify-content:space-between;align-items:center;height:52px}
-.brand{display:flex;align-items:center;gap:9px;color:var(--ink);text-decoration:none}
-.brand img{display:block}
-.wordmark{display:flex;flex-direction:column;line-height:.95}
-.wordmark b{font-weight:800;font-size:1.08rem;letter-spacing:-.03em}
-.wordmark i{font-style:normal;font-size:.66rem;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:var(--mute)}
+.brand{display:flex;align-items:center;color:var(--ink);text-decoration:none}
+/* Wordmark: the quadrant mark stands in for the "o" in Polarity */
+.wm{font-size:1.55rem;font-weight:800;letter-spacing:-.035em;line-height:1;white-space:nowrap}
+.wm-o{display:inline-block;width:.6em;height:.6em;margin:0 .015em 0 .01em;vertical-align:-.03em}
 #progress-mini{color:var(--mute);font-size:.9rem}
 .foot{color:var(--mute);font-size:.85rem;padding:30px 20px 50px}
 h1{font-size:2.2rem;line-height:1.15;letter-spacing:-.02em;margin:34px 0 10px}
@@ -150,5 +149,5 @@ details summary{margin-top:10px}
   th,td{padding:6px 5px}
   td select{max-width:110px}
   #fig-pop{max-height:70vh;overflow:auto}
-  .wordmark b{font-size:1rem}
+  .wm{font-size:1.35rem}
 }

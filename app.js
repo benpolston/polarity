@@ -1,4 +1,4 @@
-/* Compass Detailed — app logic. No dependencies. */
+/* Polarity — app logic. No dependencies. */
 (() => {
 const LABELS = ['Strongly disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly agree'];
 const SKIP_LABEL = "Don't know";
@@ -521,8 +521,8 @@ function results(view) {
 
   // wire up
   const $ = id => document.getElementById(id);
-  $('x-json').onclick = () => download('compass-results.json', JSON.stringify(exportData(pt, catScores, pairRows, consistency), null, 2), 'application/json');
-  $('x-csv').onclick = () => download('compass-answers.csv', exportCSV(), 'text/csv');
+  $('x-json').onclick = () => download('polarity-results.json', JSON.stringify(exportData(pt, catScores, pairRows, consistency), null, 2), 'application/json');
+  $('x-csv').onclick = () => download('polarity-answers.csv', exportCSV(), 'text/csv');
   $('x-print').onclick = () => window.print();
   $('x-copy').onclick = () => {
     const txt = `${quad}\nEconomic: ${fmt(pt.econ)} (${pt.econ >= 0 ? 'Right' : 'Left'})\nSocial: ${fmt(pt.soc)} (${pt.soc >= 0 ? 'Authoritarian' : 'Libertarian'})\n` + catScores.map(s => `${s.c.name}: ${s.v === null ? 'n/a' : fmt(s.v, 1)}`).join('\n');
