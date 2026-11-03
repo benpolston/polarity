@@ -1,0 +1,215 @@
+/*
+ * QUESTION BANK
+ *
+ * Direction (d):
+ *   Economic axis: +1 = agreeing pushes toward the free-market RIGHT, -1 = toward the collective LEFT
+ *   Social axis:   +1 = agreeing pushes toward AUTHORITARIAN,          -1 = toward LIBERTARIAN
+ *
+ * Anti-skew design:
+ *   - Every category has exactly 4 statements in each direction (audited live in the Methodology section).
+ *   - Every statement has equal weight (1).
+ *   - Statements describe concrete policies, not slogans, so someone at either extreme can
+ *     disagree with a statement without it being "their side's" position in disguise.
+ *   - "p" links two statements that are logical opposites, used for the consistency check.
+ *   - Order is shuffled per session; answer scale is symmetric (-2..+2).
+ */
+
+const AXES = {
+  econ: { name: 'Economic', neg: 'Left (collective)', pos: 'Right (free market)', negShort: 'Left', posShort: 'Right' },
+  soc:  { name: 'Social',   neg: 'Libertarian',        pos: 'Authoritarian',       negShort: 'Libertarian', posShort: 'Authoritarian' },
+};
+
+const CATS = [
+  { id: 'mkt', axis: 'econ', name: 'Markets & ownership' },
+  { id: 'tax', axis: 'econ', name: 'Taxes & redistribution' },
+  { id: 'wel', axis: 'econ', name: 'Welfare & healthcare' },
+  { id: 'lab', axis: 'econ', name: 'Labor & wages' },
+  { id: 'reg', axis: 'econ', name: 'Regulation & trade' },
+  { id: 'prp', axis: 'econ', name: 'Property & resources' },
+  { id: 'civ', axis: 'soc',  name: 'Civil liberties & privacy' },
+  { id: 'law', axis: 'soc',  name: 'Law & punishment' },
+  { id: 'tra', axis: 'soc',  name: 'Family & tradition' },
+  { id: 'nat', axis: 'soc',  name: 'Nation & immigration' },
+  { id: 'rel', axis: 'soc',  name: 'Religion & morality' },
+  { id: 'spe', axis: 'soc',  name: 'Speech & state power' },
+  { id: 'sex', axis: 'soc',  name: 'Sex & relationships' },
+];
+
+// Test sections, shown in this order. Questions are shuffled within a section, never across sections.
+const SECTIONS = [
+  { id: 's1', title: 'Your country and the world', blurb: 'Just a few propositions to start with, concerning — no less — how you see the country and the world.', cats: ['nat'] },
+  { id: 's2', title: 'The economy: ownership, taxes & welfare', blurb: "Now, the economy. We're talking attitudes here, not the S&P 500.", cats: ['mkt', 'tax', 'wel'] },
+  { id: 's2b', title: 'The economy: work, regulation & property', blurb: 'Still on the economy: jobs, business rules, and who owns what.', cats: ['lab', 'reg', 'prp'] },
+  { id: 's3', title: 'Personal social values', blurb: 'Now a look at some of your personal social values…', cats: ['tra', 'civ'] },
+  { id: 's4', title: 'The wider society', blurb: '…and how you see the wider society.', cats: ['law', 'spe'] },
+  { id: 's5', title: 'Religion', blurb: "If you got through that okay, you'll find these propositions on religion a breeze.", cats: ['rel'] },
+  { id: 's6', title: 'Sex', blurb: 'Finally, a look at sex.', cats: ['sex'] },
+];
+
+// [category, direction, statement, pairKey?]
+const RAW = [
+  // ---------- ECONOMIC ----------
+  // Markets & ownership
+  ['mkt', -1, 'Electricity, water, and rail networks should be owned by the public rather than by private companies.', 'utility'],
+  ['mkt', -1, 'Major banks should be publicly owned rather than privately owned.', 'state-biz'],
+  ['mkt', -1, 'Companies above a certain size should be legally required to be owned in large part by their workers.'],
+  ['mkt', -1, 'The government should set maximum prices for essentials such as basic foods, rent, and fuel.', 'price-control'],
+  ['mkt', +1, 'Privatizing state-owned companies usually makes them better run.', 'utility'],
+  ['mkt', +1, 'The government should not own or operate any business that a private company could operate.', 'state-biz'],
+  ['mkt', +1, 'Prices for essentials like food, rent, and fuel should be set by supply and demand, with no government price controls.', 'price-control'],
+  ['mkt', +1, 'Private companies should be allowed to run prisons, schools, and highways for profit.'],
+
+  // Taxes & redistribution
+  ['tax', -1, 'Income above $1 million a year should be taxed at 60% or more.', 'tax-rate'],
+  ['tax', -1, 'A yearly tax on the net wealth of the very rich is justified.'],
+  ['tax', -1, 'Large inheritances should be taxed heavily.', 'inherit'],
+  ['tax', -1, 'Narrowing the gap between rich and poor should be one of the government\'s main goals.', 'inequality'],
+  ['tax', +1, 'Everyone should pay the same percentage of their income in tax, no matter how much they earn.', 'tax-rate'],
+  ['tax', +1, 'Overall taxes should be cut, even if that means fewer government services.'],
+  ['tax', +1, 'Inheritance and estate taxes should be abolished.', 'inherit'],
+  ['tax', +1, 'Large income differences are fair because they mostly reflect differences in talent and effort.', 'inequality'],
+
+  // Welfare & healthcare
+  ['wel', -1, 'Healthcare should be paid for entirely through taxes and free at the point of use.', 'health'],
+  ['wel', -1, 'Every adult should receive a guaranteed basic income from the government.', 'ubi-work'],
+  ['wel', -1, 'Public universities should be free for all students.', 'tuition'],
+  ['wel', -1, 'The government should guarantee housing to everyone who cannot afford it.'],
+  ['wel', +1, 'People should pay for their own healthcare through private insurance or savings, not through taxes.', 'health'],
+  ['wel', +1, 'Welfare benefits should be time-limited and conditional on working or looking for work.', 'ubi-work'],
+  ['wel', +1, 'Students and their families, not taxpayers, should pay the cost of university tuition.', 'tuition'],
+  ['wel', +1, 'State pensions should be replaced with compulsory private retirement savings accounts.'],
+
+  // Labor & wages
+  ['lab', -1, 'The minimum wage should be set high enough to cover the living costs of a full-time worker.', 'minwage'],
+  ['lab', -1, 'Strong, powerful trade unions are good for the economy overall.'],
+  ['lab', -1, 'Employers should be legally required to provide paid sick leave and paid parental leave.', 'work-terms'],
+  ['lab', -1, 'Executive pay should be capped at a fixed multiple of a company\'s lowest-paid worker.'],
+  ['lab', +1, 'There should be no legal minimum wage.', 'minwage'],
+  ['lab', +1, 'Employers should be free to hire and fire anyone without government restrictions.', 'work-terms'],
+  ['lab', +1, 'Workers in a unionized workplace should be able to opt out of paying union dues.'],
+  ['lab', +1, 'Laws setting maximum working hours interfere with the right of employers and employees to agree their own terms.'],
+
+  // Regulation & trade
+  ['reg', -1, 'Banks and financial markets should be tightly regulated, even if that slows economic growth.', 'reg-vs-comp'],
+  ['reg', -1, 'Gig and platform workers (e.g. delivery drivers) should be legally treated as employees.'],
+  ['reg', -1, 'The government should cap the prices that pharmaceutical companies can charge.'],
+  ['reg', -1, 'Strict environmental and consumer-safety rules for business are worth some cost to growth.', 'regulation'],
+  ['reg', +1, 'Free trade with minimal tariffs benefits ordinary people.'],
+  ['reg', +1, 'Business regulations should be cut sharply, even where this raises some risks.', 'regulation'],
+  ['reg', +1, 'Licensing requirements for jobs like hairdressing and taxi driving should be removed.'],
+  ['reg', +1, 'Market competition protects consumers from corporate abuse better than government regulation does.', 'reg-vs-comp'],
+
+  // Property & resources
+  ['prp', -1, 'People should not be allowed to own large numbers of rental homes.'],
+  ['prp', -1, 'The government should directly invest heavily in public green energy, even at a high cost to taxpayers.', 'green'],
+  ['prp', -1, 'Patent protection on medicines should be limited so that treatments can be produced cheaply.', 'patents'],
+  ['prp', -1, 'Natural resources such as oil and minerals should be publicly owned.', 'resources'],
+  ['prp', +1, 'The government should never take private land from an owner, even for an important public project.'],
+  ['prp', +1, 'Environmental problems are better solved by market incentives and private innovation than by government mandates.', 'green'],
+  ['prp', +1, 'Strong, long-lasting patents and copyrights are essential for innovation.', 'patents'],
+  ['prp', +1, 'Landowners should be free to extract resources from their own land without government restriction.', 'resources'],
+
+  // ---------- SOCIAL ----------
+  // Civil liberties & privacy
+  ['civ', +1, 'The government should be allowed to read private communications without a warrant when it suspects terrorism.', 'warrant'],
+  ['civ', +1, 'All citizens should be required to carry a national ID card at all times.'],
+  ['civ', +1, 'Terror suspects should be detainable for months without charge.'],
+  ['civ', +1, 'Facial-recognition cameras should be installed in all public spaces to deter crime.', 'mass-surv'],
+  ['civ', -1, 'The government should need a court warrant before accessing anyone\'s phone or online data.', 'warrant'],
+  ['sex', -1, 'Sex work between consenting adults should be legal.'],
+  ['civ', -1, 'Mass surveillance of the general public can never be justified.', 'mass-surv'],
+  ['civ', -1, 'Terminally ill adults should have the legal right to assisted dying.'],
+  ['civ', -1, 'Police should not be able to stop and search anyone without reasonable suspicion.'],
+
+  // Law & punishment
+  ['law', +1, 'The death penalty should be available for the worst murders.'],
+  ['law', +1, 'Long mandatory minimum prison sentences are an effective deterrent.'],
+  ['law', +1, 'Police should be given broader powers and fewer restrictions.'],
+  ['law', +1, 'People convicted of three serious crimes should receive life sentences.'],
+  ['law', -1, 'Prison should focus primarily on rehabilitating offenders rather than on punishing them.'],
+  ['law', -1, 'Possession of small amounts of drugs for personal use should not be a criminal offense.'],
+  ['law', -1, 'Police officers should be unarmed during routine duty.'],
+  ['law', -1, 'The government should not be able to seize property from people who have not been convicted of a crime.'],
+
+  // Family & tradition
+  ['tra', +1, 'Respect for authority is the most important thing children should learn.'],
+  ['sex', +1, 'Marriage should be legally defined as a union between one man and one woman.', 'marriage'],
+  ['sex', +1, 'Abortion should be illegal in most circumstances.', 'abortion'],
+  ['tra', +1, 'Schools should enforce strict discipline, including uniforms and formal punishments.'],
+  ['tra', +1, 'The law should give married couples advantages that unmarried couples do not get.', 'marriage-priv'],
+  ['tra', +1, 'Divorce should be made harder to obtain.'],
+  ['sex', -1, 'Same-sex couples should have exactly the same legal right to marry as other couples.', 'marriage'],
+  ['sex', -1, 'Abortion should be a woman\'s legal choice during early pregnancy.', 'abortion'],
+  ['tra', -1, 'Adults should be able to change their legal gender through self-declaration.'],
+  ['tra', -1, 'Children should be encouraged to question authority rather than obey it.'],
+  ['tra', -1, 'Unmarried couples should have the same legal rights and benefits as married couples.', 'marriage-priv'],
+  ['tra', -1, "Traditions should be dropped or changed when they no longer serve people's needs."],
+
+  // Nation & immigration
+  ['nat', +1, 'Immigration levels should be sharply reduced.', 'immig'],
+  ['nat', +1, 'A country should withdraw from international bodies whenever their rules conflict with its national laws.'],
+  ['nat', +1, 'Immigrants should be required to adopt the national language and culture to gain full acceptance.'],
+  ['nat', +1, 'All young people should be required to complete a period of national service.'],
+  ['nat', -1, 'Anyone who wants to live and work in another country should be free to do so, subject only to security checks.', 'immig'],
+  ['nat', -1, 'People fleeing war or persecution should always be admitted.'],
+  ['nat', -1, 'International human rights law should override national laws when the two conflict.'],
+  ['nat', -1, 'People owe no more loyalty to their own country than to people in other countries.'],
+
+  // Religion & morality
+  ['rel', +1, 'Religious values should guide the country\'s laws.'],
+  ['rel', +1, 'State schools should include daily prayer or religious instruction.'],
+  ['rel', +1, 'Alcohol sales should be heavily restricted on moral grounds.'],
+  ['sex', +1, 'Adult pornography should be illegal.'],
+  ['rel', +1, 'Society should legally prohibit behavior it considers immoral, even if it harms only the person doing it.', 'moral-law'],
+  ['rel', -1, 'Government should be strictly neutral between religious and non-religious beliefs and should not fund religious institutions.'],
+  ['rel', -1, 'The law should not enforce moral codes on private behavior between consenting adults.', 'moral-law'],
+  ['rel', -1, 'Adults should be free to gamble with minimal government restriction.'],
+  ['rel', -1, 'Public holidays and school terms should not be built around the calendar of any one religion.'],
+  ['sex', -1, 'Comprehensive sex education, including contraception and sexuality, should be taught in schools.', 'sexed'],
+  ['sex', +1, 'Sex education in schools should teach abstinence until marriage rather than contraception.', 'sexed'],
+
+  // Speech & state power
+  ['spe', +1, 'Hate speech against groups should be a criminal offense.', 'speech'],
+  ['spe', +1, 'In a crisis, a strong leader who can bypass the legislature is better than slow democratic debate.'],
+  ['spe', +1, 'The government should be able to block websites and media it considers dangerous or false.'],
+  ['spe', +1, 'Burning the national flag should be illegal.'],
+  ['spe', -1, 'Speech that most people find deeply offensive should be legal unless it incites imminent violence.', 'speech'],
+  ['spe', -1, 'Whistleblowers who expose government secrets should be protected rather than prosecuted.'],
+  ['spe', -1, 'Citizens should be able to hold disruptive public protests without prior police permission.'],
+  ['spe', -1, 'Even extremist political parties should be allowed to operate legally.'],
+];
+
+// Build the final question list with ids, axes and split-half assignment
+const QUESTIONS = (() => {
+  const catAxis = Object.fromEntries(CATS.map(c => [c.id, c.axis]));
+  const counters = {};       // per cat+dir, for split-half
+  const idCounters = {};
+  return RAW.map(([c, d, t, p]) => {
+    idCounters[c] = (idCounters[c] || 0) + 1;
+    const gk = c + d;
+    counters[gk] = (counters[gk] || 0);
+    const half = counters[gk] < 2 ? 'A' : 'B';
+    counters[gk]++;
+    return { id: `${c}-${idCounters[c]}`, n: 0, axis: catAxis[c], cat: c, d, t, p: p || null, half };
+  }).map((q, i) => ({ ...q, n: i + 1, sec: SECTIONS.findIndex(sc => sc.cats.includes(q.cat)) }));
+})();
+
+// Balance audit (also shown in the UI)
+function balanceAudit() {
+  const rows = [];
+  let ok = true;
+  for (const c of CATS) {
+    const qs = QUESTIONS.filter(q => q.cat === c.id);
+    const pos = qs.filter(q => q.d > 0).length;
+    const neg = qs.filter(q => q.d < 0).length;
+    if (pos !== neg) ok = false;
+    rows.push({ cat: c, pos, neg });
+  }
+  for (const a of Object.keys(AXES)) {
+    const qs = QUESTIONS.filter(q => q.axis === a);
+    if (qs.filter(q => q.d > 0).length !== qs.filter(q => q.d < 0).length) ok = false;
+  }
+  return { ok, rows };
+}
+
+if (typeof module !== 'undefined') module.exports = { AXES, CATS, SECTIONS, QUESTIONS, balanceAudit };
