@@ -93,6 +93,8 @@ const FIGURES_RAW = [
   ['Gary Johnson', 7.5, -6.5],
   ['Ron Paul', 9, -6],
   ['Murray Rothbard', 10, -9.5],
+  ['Thomas Jefferson', 6, -5],
+  ['John McAfee', 8, -8],
 
   // More politicians & leaders
   // (US: current)
@@ -230,5 +232,5 @@ const DEFAULT_FIGURES = [
   // Libertarian Left
   'Bernie Sanders', 'Mahatma Gandhi', 'Joe Biden', 'Martin Luther King Jr.', 'Karl Marx', 'Noam Chomsky',
   // Libertarian Right
-  'Ayn Rand', 'Rand Paul', 'Joe Rogan',
+  'Ayn Rand', 'Rand Paul', 'Joe Rogan', 'Thomas Jefferson', 'John McAfee',
 ];
