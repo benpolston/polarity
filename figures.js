@@ -95,6 +95,7 @@ const FIGURES_RAW = [
   ['Murray Rothbard', 10, -9.5],
   ['Thomas Jefferson', 6, -5],
   ['John McAfee', 8, -8],
+  ['Ross Ulbricht', 9, -8.5],
 
   // More politicians & leaders
   // (US: current)
@@ -171,7 +172,7 @@ const FIGURE_KINDS = {
   thinker: [
     'Adam Smith', 'Friedrich Hayek', 'Milton Friedman', 'Ayn Rand', 'Murray Rothbard',
     'Karl Marx', 'Noam Chomsky', 'Emma Goldman', 'Peter Kropotkin', 'Rosa Luxemburg',
-    'Mahatma Gandhi', 'Martin Luther King Jr.', 'Dalai Lama',
+    'Mahatma Gandhi', 'Martin Luther King Jr.', 'Dalai Lama', 'Ross Ulbricht',
   ],
   media: [
     'Nick Fuentes', 'Steve Bannon', 'Matt Walsh', 'Andrew Tate', 'Tucker Carlson', 'Candace Owens',
