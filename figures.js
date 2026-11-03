@@ -225,7 +225,7 @@ for (const f of FIGURES) {
 const DEFAULT_FIGURES = [
   // Authoritarian Left
   'Joseph Stalin', 'Xi Jinping', 'Fidel Castro', 'John F. Kennedy',
-  'Franklin D. Roosevelt', 'Hillary Clinton', 'Hugo Chávez',
+  'Franklin D. Roosevelt', 'Hillary Clinton', 'Hugo Chávez', 'Saddam Hussein',
   // Authoritarian Right
   'Adolf Hitler', 'Vladimir Putin', 'Donald Trump', 'Ronald Reagan', 'Elon Musk', 'Tucker Carlson',
   'Dwight D. Eisenhower', 'Joseph McCarthy', 'Augusto Pinochet',
@@ -233,7 +233,7 @@ const DEFAULT_FIGURES = [
   'Barack Obama',
   // Libertarian Left
   'Bernie Sanders', 'Mahatma Gandhi', 'Joe Biden', 'Martin Luther King Jr.', 'Karl Marx', 'Noam Chomsky',
-  'Elizabeth Warren',
+  'Elizabeth Warren', 'Bill Maher',
   // Libertarian Right
   'Ayn Rand', 'Rand Paul', 'Joe Rogan', 'Thomas Jefferson', 'John McAfee', 'Barry Goldwater',
 ];
