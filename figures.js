@@ -222,6 +222,7 @@ for (const f of FIGURES) {
 const DEFAULT_FIGURES = [
   // Authoritarian Left
   'Joseph Stalin', 'Xi Jinping', 'Fidel Castro', 'John F. Kennedy',
+  'Franklin D. Roosevelt', 'Hillary Clinton', 'Hugo Chávez',
   // Authoritarian Right
   'Adolf Hitler', 'Vladimir Putin', 'Donald Trump', 'Ronald Reagan', 'Elon Musk', 'Tucker Carlson',
   // On the horizontal axis (social 0)
