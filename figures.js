@@ -216,9 +216,10 @@ for (const f of FIGURES) {
 /*
  * DEFAULT CHART FIGURES: ticked on first visit (and by the "Best known" button).
  * Chosen for name recognition and spread across all four quadrants so the labels don't cluster.
+ * Rule: no default's label may be displaced by another default (check after moving any figure).
  */
 const DEFAULT_FIGURES = [
   'Joseph Stalin', 'Xi Jinping', 'Adolf Hitler', 'Vladimir Putin', 'Donald Trump',
-  'Ronald Reagan', 'Barack Obama', 'Bernie Sanders', 'Nelson Mandela', 'Mahatma Gandhi',
-  'Ayn Rand', 'Ron Paul',
+  'Ronald Reagan', 'Barack Obama', 'Bernie Sanders', 'Mahatma Gandhi',
+  'Ayn Rand',
 ];

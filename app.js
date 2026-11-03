@@ -292,10 +292,10 @@ function compassSVG(x, y, figs, friend) {
   // label text is sized for the chart's real on-screen width, so names stay readable (~10px+) on phones
   const shownW = (document.getElementById('compass-wrap') || {}).clientWidth || SZW;
   const FS = Math.max(11.5, Math.min(20, 10.5 * SZW / shownW)), H = Math.round(FS * 1.4);
-  // obstacles: every dot (and you, and your friend), then labels as they get placed
+  // obstacles: every figure dot, then labels as they get placed. Your dot and your friend's marker are
+  // NOT obstacles: they're drawn on top instead, so a figure's label never moves just because of where
+  // a result happened to land.
   const boxes = figs.map(f => ({ x: px(f.econ) - 4, y: py(f.soc) - 4, w: 8, h: 8, owner: f.name }));
-  boxes.push({ x: px(x) - 10, y: py(y) - 10, w: 20, h: 20, owner: '__you' });
-  if (friend) boxes.push({ x: px(friend.econ) - 10, y: py(friend.soc) - 10, w: 20, h: 20, owner: '__friend' });
   const hit = r => boxes.some(o => r.x < o.x + o.w && r.x + r.w > o.x && r.y < o.y + o.h && r.y + r.h > o.y && o.owner !== r.owner);
   for (const f of figs) {
     g += `<circle cx="${px(f.econ)}" cy="${py(f.soc)}" r="3.6" fill="#374151" fill-opacity=".7" stroke="#fff" stroke-width="1"></circle><circle cx="${px(f.econ)}" cy="${py(f.soc)}" r="9" fill="transparent" data-fig="${esc(f.name)}" tabindex="0" style="cursor:help"/>`;
