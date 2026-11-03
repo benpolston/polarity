@@ -221,5 +221,5 @@ for (const f of FIGURES) {
 const DEFAULT_FIGURES = [
   'Joseph Stalin', 'Xi Jinping', 'Adolf Hitler', 'Vladimir Putin', 'Donald Trump',
   'Ronald Reagan', 'Barack Obama', 'Bernie Sanders', 'Mahatma Gandhi',
-  'Ayn Rand',
+  'Ayn Rand', 'Rand Paul', 'Joe Rogan',
 ];
