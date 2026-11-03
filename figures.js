@@ -31,6 +31,8 @@ const FIGURES_RAW = [
   ['Augusto Pinochet', 8.5, 8],
   ['Joseph McCarthy', 6.5, 8.5],
   ['J. Edgar Hoover', 5, 9],
+  ['Nayib Bukele', 4, 8],
+  ['Mohammed bin Salman', 4.5, 9],
   ['Vladimir Putin', 3.5, 7.5],
   ['Recep Tayyip Erdoğan', 3, 6.5],
   ['Viktor Orbán', 3, 6],
