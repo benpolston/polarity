@@ -78,6 +78,7 @@ const FIGURES_RAW = [
   ['Rosa Luxemburg', -8.5, -4.5],
   ['Mahatma Gandhi', -5, -4],
   ['Dalai Lama', -4, -5],
+  ['Karl Marx', -10, -1],
   ['Noam Chomsky', -8, -8.5],
   ['Emma Goldman', -9, -9.5],
   ['Peter Kropotkin', -9.5, -9.5],
@@ -167,7 +168,7 @@ const FIGURES_RAW = [
 const FIGURE_KINDS = {
   thinker: [
     'Adam Smith', 'Friedrich Hayek', 'Milton Friedman', 'Ayn Rand', 'Murray Rothbard',
-    'Noam Chomsky', 'Emma Goldman', 'Peter Kropotkin', 'Rosa Luxemburg',
+    'Karl Marx', 'Noam Chomsky', 'Emma Goldman', 'Peter Kropotkin', 'Rosa Luxemburg',
     'Mahatma Gandhi', 'Martin Luther King Jr.', 'Dalai Lama',
   ],
   media: [
@@ -226,7 +227,7 @@ const DEFAULT_FIGURES = [
   // On the horizontal axis (social 0)
   'Barack Obama',
   // Libertarian Left
-  'Bernie Sanders', 'Mahatma Gandhi', 'Joe Biden', 'Martin Luther King Jr.',
+  'Bernie Sanders', 'Mahatma Gandhi', 'Joe Biden', 'Martin Luther King Jr.', 'Karl Marx', 'Noam Chomsky',
   // Libertarian Right
   'Ayn Rand', 'Rand Paul', 'Joe Rogan',
 ];
