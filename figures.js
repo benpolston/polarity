@@ -228,10 +228,12 @@ const DEFAULT_FIGURES = [
   'Franklin D. Roosevelt', 'Hillary Clinton', 'Hugo Chávez',
   // Authoritarian Right
   'Adolf Hitler', 'Vladimir Putin', 'Donald Trump', 'Ronald Reagan', 'Elon Musk', 'Tucker Carlson',
+  'Dwight D. Eisenhower', 'Joseph McCarthy', 'Augusto Pinochet',
   // On the horizontal axis (social 0)
   'Barack Obama',
   // Libertarian Left
   'Bernie Sanders', 'Mahatma Gandhi', 'Joe Biden', 'Martin Luther King Jr.', 'Karl Marx', 'Noam Chomsky',
+  'Elizabeth Warren',
   // Libertarian Right
-  'Ayn Rand', 'Rand Paul', 'Joe Rogan', 'Thomas Jefferson', 'John McAfee',
+  'Ayn Rand', 'Rand Paul', 'Joe Rogan', 'Thomas Jefferson', 'John McAfee', 'Barry Goldwater',
 ];
