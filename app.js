@@ -10,6 +10,8 @@ const $app = document.getElementById('app');
 const $mini = document.getElementById('progress-mini');
 const QBY = Object.fromEntries(QUESTIONS.map(q => [q.id, q]));
 const CATBY = Object.fromEntries(CATS.map(c => [c.id, c]));
+// statement id -> plain-English explanation (from STATEMENT_HELP in questions.js)
+const HELP = Object.fromEntries(QUESTIONS.map(q => [q.id, (Object.entries(STATEMENT_HELP).find(([k]) => q.t.includes(k)) || [])[1]]).filter(([, v]) => v));
 
 // S = your own saved test: {order:[ids], idx, secShown, answers:{id:{v,ms,changes,seq}}, started, finished}
 //     v is -2..+2, or null for "Don't know" (excluded from scoring).
@@ -152,6 +154,8 @@ function quiz() {
     <div class="card q-card">
       <div class="q-num">${sec.title} · statement ${S.order.slice(0, S.idx + 1).filter(id => QBY[id].sec === q.sec).length} of ${S.order.filter(id => QBY[id].sec === q.sec).length}</div>
       <p class="q-text">${esc(q.t)}</p>
+      ${HELP[q.id] ? `<button class="helplink" id="help-btn" aria-expanded="false" aria-controls="help-txt">What does this mean?</button>
+      <p class="help" id="help-txt" hidden>${esc(HELP[q.id])}</p>` : ''}
       <div class="opts">
         ${LABELS.map((l, i) => `<button class="opt ${cur && cur.v === i - 2 ? 'sel' : ''}" data-v="${i - 2}"><kbd>${i + 1}</kbd>${l}</button>`).join('')}
       </div>
@@ -163,6 +167,8 @@ function quiz() {
     </div>`;
   shownAt = performance.now();
   $app.querySelectorAll('.opt').forEach(b => b.onclick = () => answer(q, b.dataset.v === 'skip' ? null : +b.dataset.v));
+  const hb = document.getElementById('help-btn');
+  if (hb) hb.onclick = () => { const t = document.getElementById('help-txt'), open = t.hidden; t.hidden = !open; hb.setAttribute('aria-expanded', open); hb.textContent = open ? 'Hide explanation' : 'What does this mean?'; };
   document.getElementById('back').onclick = back;
   document.getElementById('fwd').onclick = () => { if (!S.answers[q.id]) return; S.idx++; save(); quiz(); window.scrollTo(0, 0); };
 }
@@ -775,7 +781,7 @@ function drawTable() {
   const opt = (val, label, sel) => `<option value="${val}" ${sel ? 'selected' : ''}>${label}</option>`;
   const el = document.getElementById('ans-table');
   el.innerHTML = `<tr>${th('n', own ? '#asked' : '#')}<th>Statement</th>${th('topic', 'Topic')}<th>Agreeing pushes</th>${th('v', 'Answer')}${th('pts', 'Points')}${own ? th('ms', 'Time') : ''}</tr>` +
-    rows.map(r => `<tr><td>${r.a.seq}</td><td>${esc(r.q.t)}</td><td><span class="tag">${CATBY[r.q.cat].name}</span></td>
+    rows.map(r => `<tr><td>${r.a.seq}</td><td${HELP[r.q.id] ? ` title="${esc(HELP[r.q.id])}"` : ''}>${esc(r.q.t)}${HELP[r.q.id] ? ' <span class="muted" aria-hidden="true">ⓘ</span>' : ''}</td><td><span class="tag">${CATBY[r.q.cat].name}</span></td>
       <td>${r.q.d > 0 ? AXES[r.q.axis].posShort : AXES[r.q.axis].negShort}</td>
       <td>${own ? `<select data-id="${r.q.id}">${LABELS.map((l, i) => opt(i - 2, l, r.a.v === i - 2)).join('')}${opt('skip', SKIP_LABEL, !known(r.a))}</select>` : labelOf(r.a.v)}</td>
       <td class="${r.pts > 0 ? 'pos-' + r.q.axis[0] : r.pts < 0 ? 'neg-' + r.q.axis[0] : ''}">${r.pts === null ? '<span class="muted">—</span>' : fmt(r.pts)}</td>${own ? `<td>${(r.a.ms / 1000).toFixed(1)}s</td>` : ''}</tr>`).join('') +

@@ -151,3 +151,8 @@ details summary{margin-top:10px}
   #fig-pop{max-height:70vh;overflow:auto}
   .wm{font-size:1.35rem}
 }
+
+/* statement explanations */
+.helplink{background:none;border:0;color:var(--mute);padding:0;margin:-14px 0 16px;font-size:.88rem;text-decoration:underline dotted;text-underline-offset:3px;cursor:pointer}
+.helplink:hover{color:var(--ink)}
+.help{background:#f6f5f1;border-left:3px solid var(--line);border-radius:6px;padding:10px 12px;margin:-6px 0 18px;font-size:.92rem;color:#374151}

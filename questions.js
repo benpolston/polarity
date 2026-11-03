@@ -194,6 +194,43 @@ const QUESTIONS = (() => {
   }).map((q, i) => ({ ...q, n: i + 1, sec: SECTIONS.findIndex(sc => sc.cats.includes(q.cat)) }));
 })();
 
+/*
+ * PLAIN-ENGLISH EXPLANATIONS for statements that use jargon. Shown behind "What does this mean?" in the quiz.
+ * Key = text that appears in exactly one statement (node test.js checks this).
+ * Keep these strictly descriptive: say what the term means, never why it is good or bad.
+ */
+const STATEMENT_HELP = {
+  'Major banks should be publicly owned': 'Publicly owned means the government owns and runs the bank, rather than private shareholders.',
+  'owned in large part by their workers': 'For example, a law requiring employees of large companies to hold a big share of the ownership, instead of only outside investors.',
+  'yearly tax on the net wealth': 'A wealth tax is charged every year on the total value of what someone owns (stocks, property, businesses) minus their debts, rather than on their income.',
+  'Large inheritances should be taxed heavily': 'An inheritance or estate tax is paid on money and property passed on when someone dies. The U.S. federal estate tax currently applies only to estates worth many millions of dollars.',
+  'same percentage of their income in tax': 'This is called a flat tax. The U.S. currently uses a progressive income tax, where higher slices of income are taxed at higher rates.',
+  'guaranteed basic income': 'Often called universal basic income (UBI): a regular cash payment to every adult, whether or not they work.',
+  'Social Security should be replaced': 'Social Security pays retirement benefits funded by payroll taxes on current workers. The alternative is requiring each worker to save in their own investment account.',
+  'opt out of paying union dues': 'Laws allowing this are called right-to-work laws. Without them, a unionized workplace can require the workers it bargains for to pay fees to the union.',
+  'maximum working hours': 'For example, rules that cap weekly hours or require overtime pay beyond a set number of hours.',
+  'Gig and platform workers': 'Gig workers are usually classed as independent contractors, so minimum wage, overtime and benefit rules generally do not apply to them. Being classed as employees would change that.',
+  'cap the prices that pharmaceutical companies': 'A price cap sets a maximum price for a drug, for example through government negotiation with drug makers.',
+  'Licensing requirements for jobs': 'Occupational licensing means needing a government license, often with required training hours and fees, to work legally in a job.',
+  'Free trade with minimal tariffs': 'A tariff is a tax on imported goods. Free trade means few tariffs or other barriers to buying and selling across borders.',
+  'Patent protection on medicines': 'A patent gives a drug’s maker the exclusive right to sell it for a set period (about 20 years from filing), which keeps cheaper generic versions off the market until it expires.',
+  'never take private land': 'Today the government can take private property for public use, such as a road, if it pays fair compensation. This is called eminent domain.',
+  'Environmental problems are better solved by market': 'Market incentives include things like tradable pollution permits or rewards for cleaner technology, as opposed to rules requiring specific standards.',
+  'Terror suspects should be detainable': 'Detention without charge means being held in custody without being formally accused of a crime or put on trial.',
+  'mandatory minimum prison sentences': 'A mandatory minimum is a prison term set by law for certain crimes that a judge cannot go below.',
+  'three serious crimes': 'Often called three-strikes laws: a third conviction for a serious crime brings an automatic very long or life sentence.',
+  'seize property from people who have not been convicted': 'This practice is called civil asset forfeiture: police can seize cash or property they suspect is linked to a crime, even if the owner is never charged.',
+  'change their legal gender through self-declaration': 'Self-declaration means changing the sex or gender on legal documents by personal statement, without a medical diagnosis or treatment.',
+  'International human rights law should override': 'For example, an international human rights treaty or court taking priority over a U.S. law that conflicts with it.',
+  'withdraw from international bodies': 'International bodies include organizations such as the United Nations, the World Health Organization and the World Trade Organization.',
+  'Hate speech against groups': 'Hate speech means speech attacking people because of traits such as race, religion or sexuality. Under the First Amendment it is currently mostly legal in the U.S. unless it is a true threat or incites imminent violence.',
+  'Comprehensive sex education': 'Comprehensive sex education covers contraception, consent and sexuality, as opposed to programs focused mainly on abstinence.',
+  'assisted dying': 'Assisted dying lets a terminally ill adult get a doctor’s help to end their own life. It is legal in some U.S. states.',
+  'Whistleblowers who expose government secrets': 'A whistleblower is an insider who reveals wrongdoing; here, someone who discloses classified or secret government information to the public.',
+  'Police officers should be unarmed': 'Routine duty means everyday patrol work, with armed specialist units called in for dangerous situations, as in the U.K.',
+  'strong leader who can bypass the legislature': 'Bypassing the legislature means governing by decree, without Congress passing laws.',
+};
+
 // Balance audit (also shown in the UI)
 function balanceAudit() {
   const rows = [];
@@ -212,4 +249,4 @@ function balanceAudit() {
   return { ok, rows };
 }
 
-if (typeof module !== 'undefined') module.exports = { AXES, CATS, SECTIONS, QUESTIONS, balanceAudit };
+if (typeof module !== 'undefined') module.exports = { AXES, CATS, SECTIONS, QUESTIONS, STATEMENT_HELP, balanceAudit };
