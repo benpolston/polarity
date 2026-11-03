@@ -411,7 +411,6 @@ function results(view) {
           <b>Figures on chart</b>
           <select id="fp-kind"><option value="">All types</option>${Object.entries(KIND_LABEL).map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select>
           <input id="fp-text" placeholder="Filter names…">
-          <button class="ghost sm" id="fp-def">Best known</button>
           <button class="ghost sm" id="fp-near">5 closest</button>
           <button class="ghost sm" id="fp-all">All listed</button>
           <button class="ghost sm" id="fp-none">None</button>
@@ -703,7 +702,6 @@ function initFigures(pt) {
   $('fp-kind').onchange = e => { figState.kind = e.target.value; drawPicker(pt); };
   $('fp-text').oninput = e => { figState.pick = e.target.value; drawPicker(pt); };
   $('fp-near').onclick = () => { figState.sel = new Set(figsWithDist(pt).sort((a, b) => a.dist - b.dist).slice(0, 5).map(f => f.name)); saveSel(); drawPicker(pt); drawChartFigs(pt); };
-  $('fp-def').onclick = () => { figState.sel = new Set(DEFAULT_FIGURES); saveSel(); drawPicker(pt); drawChartFigs(pt); };
   $('fp-all').onclick = () => { pickerList(pt).forEach(f => figState.sel.add(f.name)); saveSel(); drawPicker(pt); drawChartFigs(pt); };
   $('fp-none').onclick = () => { figState.sel.clear(); saveSel(); drawPicker(pt); drawChartFigs(pt); };
   $('fp-list').onchange = e => {

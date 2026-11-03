@@ -214,7 +214,7 @@ for (const f of FIGURES) {
 }
 
 /*
- * DEFAULT CHART FIGURES: ticked on first visit (and by the "Best known" button).
+ * DEFAULT CHART FIGURES: shown until the visitor changes the selection in the picker.
  * Chosen for name recognition and spread across all four quadrants so the labels don't cluster.
  * Rule: no default's label may be displaced by another default (check after moving any figure).
  */
