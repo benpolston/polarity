@@ -89,6 +89,32 @@ const FIGURES_RAW = [
   ['Ron Paul', 9, -8],
   ['Murray Rothbard', 10, -9.5],
 
+  // More politicians & leaders
+  // (US: current)
+  ['JD Vance', 2.5, 6],
+  ['Ron DeSantis', 6, 6],
+  ['Marjorie Taylor Greene', 4, 7],
+  ['Robert F. Kennedy Jr.', -1, 3],
+  ['Hillary Clinton', 1, 2],
+  ['Pete Buttigieg', -1, -0.5],
+  ['Zohran Mamdani', -6.5, -3.5],
+  ['Thomas Massie', 8, -5],
+  // (US: historic)
+  ['John F. Kennedy', -2, 2.5],
+  ['Lyndon B. Johnson', -4, 3.5],
+  ['Dwight D. Eisenhower', 2, 3.5],
+  ['Jimmy Carter', -1.5, 0.5],
+  ['George H. W. Bush', 5, 3.5],
+  ['Barry Goldwater', 8, -1],
+  // (world)
+  ['Volodymyr Zelensky', 2, 4],
+  ['Lula da Silva', -5, 0.5],
+  ['Mark Carney', 2, 0],
+  ['Ali Khamenei', -2, 10],
+  ['Pol Pot', -10, 10],
+  ['Saddam Hussein', -4, 9.5],
+  ['Muammar Gaddafi', -6, 9],
+
   // Online personalities, podcasters & commentators
   // (right / conservative)
   ['Nick Fuentes', 1, 8.5],
@@ -121,6 +147,14 @@ const FIGURES_RAW = [
   ['Kyle Kulinski', -6, -5],
   ['ContraPoints', -5.5, -5],
   ['Vaush', -8, -5],
+  // (more commentators)
+  ['Sean Hannity', 6.5, 5],
+  ['Megyn Kelly', 5, 3.5],
+  ['Glenn Beck', 7, 3],
+  ['Saagar Enjeti', 1, 4],
+  ['Lex Fridman', 2, -2],
+  ['Bill Maher', -1, -2],
+  ['Krystal Ball', -5, -2],
 ];
 
 /*
@@ -138,6 +172,7 @@ const FIGURE_KINDS = {
     'Dave Rubin', 'Tim Pool', 'Joe Rogan', 'Dave Smith', 'Glenn Greenwald', 'Rachel Maddow', 'Destiny',
     'Cenk Uygur', 'David Pakman', 'Sam Seder', 'Jon Stewart', 'John Oliver', 'Hasan Piker',
     'Kyle Kulinski', 'ContraPoints', 'Vaush',
+    'Sean Hannity', 'Megyn Kelly', 'Glenn Beck', 'Saagar Enjeti', 'Lex Fridman', 'Bill Maher', 'Krystal Ball',
   ],
 };
 const KIND_LABEL = { politician: 'Politicians & leaders', thinker: 'Thinkers & activists', media: 'Commentators & media' };
