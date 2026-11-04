@@ -765,7 +765,8 @@ function popHTML(f) {
   const who = R && !R.own ? esc(R.name || 'They') : 'You';
   const short = esc(f.name.split(' ').length > 1 ? f.name.split(' ').slice(-1)[0] : f.name);
   const item = r => `<li>${esc(r.q.t)}<br><span class="muted">${who}: ${ans(r.u)} · ${short}: ${ans(r.p.v)}${r.p.manual ? ' ★' : ' (inferred)'}</span></li>`;
-  const head = `<b>${esc(f.name)}</b><div class="muted small">${KIND_LABEL[f.kind]} · ${quad} · est. ${fmt(f.econ, 1)} econ, ${fmt(f.soc, 1)} social</div>`;
+  const why = (typeof FIGURE_WHY !== 'undefined' && FIGURE_WHY[f.name]) || '';
+  const head = `<b>${esc(f.name)}</b><div class="muted small">${KIND_LABEL[f.kind]} · ${quad} · est. ${fmt(f.econ, 1)} econ, ${fmt(f.soc, 1)} social</div>${why ? `<p class="why"><b>Why here:</b> ${esc(why)}</p>` : ''}`;
   if (!c.nSame && !c.nDiff) {
     const central = Math.abs(f.econ) < 2 && Math.abs(f.soc) < 2;
     return head + `<p class="small" style="margin-top:8px">${central
@@ -776,7 +777,7 @@ function popHTML(f) {
   return head + `
     <h4 class="ok">Likely to agree <span class="muted">(${c.nSame} statements)</span></h4><ul>${c.same.map(item).join('') || '<li class="muted">Nothing clear.</li>'}</ul>
     <h4 class="bad">Likely to disagree <span class="muted">(${c.nDiff} statements)</span></h4><ul>${c.diff.map(item).join('') || '<li class="muted">Nothing clear.</li>'}</ul>
-    <div class="muted small">Mostly inferred from an estimated position, not documented stances. ★ = set manually in figures.js.</div>`;
+    <div class="muted small">★ = documented stance. Everything else is inferred from the estimated position.</div>`;
 }
 let popEl, popFor = null;
 function showPop(target, x, y) {

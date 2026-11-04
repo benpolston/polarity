@@ -192,3 +192,4 @@ details summary{margin-top:10px}
   .feats,.steps{grid-template-columns:1fr}
   .land-hero h1{font-size:2rem}
 }
+#fig-pop .why{margin:8px 0 2px;padding:7px 9px;background:#f6f5f1;border-radius:7px;font-size:.82rem}
