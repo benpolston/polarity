@@ -37,13 +37,13 @@ const CATS = [
 
 // Test sections, shown in this order. Questions are shuffled within a section, never across sections.
 const SECTIONS = [
-  { id: 's1', title: 'Your country and the world', blurb: 'Just a few propositions to start with, concerning — no less — how you see the country and the world.', cats: ['nat'] },
-  { id: 's2', title: 'The economy: ownership, taxes & welfare', blurb: "Now, the economy. We're talking attitudes here, not the S&P 500.", cats: ['mkt', 'tax', 'wel'] },
-  { id: 's2b', title: 'The economy: work, regulation & property', blurb: 'Still on the economy: jobs, business rules, and who owns what.', cats: ['lab', 'reg', 'prp'] },
-  { id: 's3', title: 'Personal social values', blurb: 'Now a look at some of your personal social values…', cats: ['tra', 'civ'] },
-  { id: 's4', title: 'The wider society', blurb: '…and how you see the wider society.', cats: ['law', 'spe'] },
-  { id: 's5', title: 'Religion', blurb: "If you got through that okay, you'll find these propositions on religion a breeze.", cats: ['rel'] },
-  { id: 's6', title: 'Sex', blurb: 'Finally, a look at sex.', cats: ['sex'] },
+  { id: 's1', title: 'America and the world', blurb: 'First up: how you see the United States, its borders, and its place in the world.', cats: ['nat'] },
+  { id: 's2', title: 'The economy: ownership, taxes & welfare', blurb: "On to the economy. This is about what you think should happen, not how the stock market is doing.", cats: ['mkt', 'tax', 'wel'] },
+  { id: 's2b', title: 'The economy: work, regulation & property', blurb: 'More on the economy: jobs, rules for business, and who owns what.', cats: ['lab', 'reg', 'prp'] },
+  { id: 's3', title: 'Family, tradition & privacy', blurb: 'Next, family values, tradition, and how much of your private life is your own business.', cats: ['tra', 'civ'] },
+  { id: 's4', title: 'Law, order & free speech', blurb: 'Now crime, policing, and what people should be allowed to say.', cats: ['law', 'spe'] },
+  { id: 's5', title: 'Religion', blurb: 'A short set on faith and its role in public life.', cats: ['rel'] },
+  { id: 's6', title: 'Sex & relationships', blurb: 'Last section: sex, relationships, and what the law should have to say about them.', cats: ['sex'] },
 ];
 
 // [category, direction, statement, pairKey?]
