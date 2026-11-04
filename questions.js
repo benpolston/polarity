@@ -6,7 +6,7 @@
  *   Social axis:   +1 = agreeing pushes toward AUTHORITARIAN,          -1 = toward LIBERTARIAN
  *
  * Anti-skew design:
- *   - Every category has exactly 4 statements in each direction (checked by balanceAudit() and `node test.js`).
+ *   - Every category has the same number of statements in each direction (checked by balanceAudit() and `node test.js`).
  *   - Every statement has equal weight (1).
  *   - Statements describe concrete policies, not slogans, so someone at either extreme can
  *     disagree with a statement without it being "their side's" position in disguise.
@@ -83,11 +83,9 @@ const RAW = [
   ['lab', -1, 'The minimum wage should be set high enough to cover the living costs of a full-time worker.', 'minwage'],
   ['lab', -1, 'Strong, powerful labor unions are good for the economy overall.'],
   ['lab', -1, 'Employers should be legally required to provide paid sick leave and paid parental leave.', 'work-terms'],
-  ['lab', -1, 'Executive pay should be capped at a fixed multiple of a company\'s lowest-paid worker.'],
   ['lab', +1, 'There should be no legal minimum wage.', 'minwage'],
   ['lab', +1, 'Employers should be free to hire and fire anyone without government restrictions.', 'work-terms'],
   ['lab', +1, 'Workers in a unionized workplace should be able to opt out of paying union dues.'],
-  ['lab', +1, 'Laws setting maximum working hours interfere with the right of employers and employees to agree their own terms.'],
 
   // Regulation & trade
   ['reg', -1, 'Banks and financial markets should be tightly regulated, even if that slows economic growth.', 'reg-vs-comp'],
@@ -158,12 +156,10 @@ const RAW = [
   // Religion & morality
   ['rel', +1, 'Religious values should guide the country\'s laws.'],
   ['rel', +1, 'Public schools should include daily prayer or religious instruction.'],
-  ['rel', +1, 'Alcohol sales should be heavily restricted on moral grounds.'],
   ['sex', +1, 'Adult pornography should be illegal.'],
   ['rel', +1, 'Society should legally prohibit behavior it considers immoral, even if it harms only the person doing it.', 'moral-law'],
   ['rel', -1, 'Government should be strictly neutral between religious and non-religious beliefs and should not fund religious institutions.'],
   ['rel', -1, 'The law should not enforce moral codes on private behavior between consenting adults.', 'moral-law'],
-  ['rel', -1, 'Adults should be free to gamble with minimal government restriction.'],
   ['rel', -1, "Federal holidays and school calendars should not be built around any one religion's calendar."],
   ['sex', -1, 'Comprehensive sex education, including contraception and sexuality, should be taught in schools.', 'sexed'],
   ['sex', +1, 'Sex education in schools should teach abstinence until marriage rather than contraception.', 'sexed'],
@@ -208,7 +204,6 @@ const STATEMENT_HELP = {
   'guaranteed basic income': 'Often called universal basic income (UBI): a regular cash payment to every adult, whether or not they work.',
   'Social Security should be replaced': 'Social Security pays retirement benefits funded by payroll taxes on current workers. The alternative is requiring each worker to save in their own investment account.',
   'opt out of paying union dues': 'Laws allowing this are called right-to-work laws. Without them, a unionized workplace can require the workers it bargains for to pay fees to the union.',
-  'maximum working hours': 'For example, rules that cap weekly hours or require overtime pay beyond a set number of hours.',
   'Gig and platform workers': 'Gig workers are usually classed as independent contractors, so minimum wage, overtime and benefit rules generally do not apply to them. Being classed as employees would change that.',
   'cap the prices that pharmaceutical companies': 'A price cap sets a maximum price for a drug, for example through government negotiation with drug makers.',
   'Licensing requirements for jobs': 'Occupational licensing means needing a government license, often with required training hours and fees, to work legally in a job.',

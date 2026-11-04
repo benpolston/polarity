@@ -1,7 +1,7 @@
 # Polarity
 
 A two-axis political test (economic left–right, social libertarian–authoritarian) with
-104 balanced policy statements and a detailed results page. Static site: plain HTML/CSS/JS,
+100 balanced policy statements and a detailed results page. Static site: plain HTML/CSS/JS,
 no build step, no server, no dependencies.
 
 ## Run locally
@@ -52,8 +52,11 @@ but clipboard copy needs `http://localhost` or HTTPS.)
 
 ## Editing rules that keep scoring unbiased
 
-- Every topic must keep exactly 4 statements in each direction. The results page shows a live
-  balance audit, and the intro flags it if anything is off.
+- Every topic must keep the same number of statements in each direction (currently 4 vs 4,
+  except Labor & wages and Religion & morality at 3 vs 3, for 100 in total). `node test.js`
+  checks this, and the home page flags it if the balance audit ever fails.
+- Adding or removing statements also discards any test progress saved in visitors' browsers
+  (it's tied to the same fingerprint), since statement ids can shift.
 - Changing a statement's wording is safe. Adding or removing statements, or changing a
   direction, changes the question-set fingerprint, so share links made before the change
   stop working (they show a clear "different version" message instead of misreading answers).

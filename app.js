@@ -29,8 +29,10 @@ let tableState = { axis: '', cat: '', sec: '', text: '', sort: 'n', dir: 1 };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const fmt = (x, d = 2) => (x >= 0 ? '+' : '−') + Math.abs(x).toFixed(d);
 const fmtS = (x, d = 2) => x.toFixed(d).replace('-', '−');
-function load() { try { return JSON.parse(localStorage.getItem(STORE)); } catch { return null; } }
-function save() { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch {} }
+// Saved progress is tied to the exact statement set (QSET_KEY). If the statements change, ids can point at
+// different statements, so progress saved under an older set is dropped rather than misread.
+function load() { try { const s = JSON.parse(localStorage.getItem(STORE)); return s && s.qset === QSET_KEY ? s : null; } catch { return null; } }
+function save() { if (S) S.qset = QSET_KEY; try { localStorage.setItem(STORE, JSON.stringify(S)); } catch {} }
 function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function median(a) { if (!a.length) return 0; const s = a.slice().sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
 function dur(ms) { const s = Math.round(ms / 1000); return s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`; }
@@ -112,7 +114,7 @@ function intro() {
     <h2 class="land-h2">What makes it different</h2>
     <div class="feats">
       ${feature('◎', 'Specific, not slogans', 'Every statement is a concrete policy, such as a $1 million top tax rate or unarmed police, so people at either extreme still find things to disagree with.')}
-      ${feature('⚖', 'Balanced by design', `Every topic has exactly 4 statements pushing each way${audit.ok ? '' : ' (<b>audit failed</b>)'}, all weighted equally. Agreeing with everything puts you dead center, not on one side.`)}
+      ${feature('⚖', 'Balanced by design', `Every topic has the same number of statements pushing each way${audit.ok ? '' : ' (<b>audit failed</b>)'}, all weighted equally. Agreeing with everything puts you dead center, not on one side.`)}
       ${feature('?', '“Don’t know” is respected', 'Unsure about a topic? “Don’t know” is left out of your score entirely instead of quietly pulling you toward the middle. Jargon comes with a plain-English explanation.')}
       ${feature('▤', 'Every detail of your result', `Scores for all ${CATS.length} topics, the answers that moved you most, a consistency check, timing, and every answer, which you can change and watch the result update.`)}
       ${feature('●', 'See who you’re near', `Compare your position with ${FIGURES.length} politicians, thinkers and commentators, and see which of your views each one likely shares or opposes.`)}
@@ -139,7 +141,7 @@ function intro() {
   on('resume', () => { shownAt = 0; quiz(); });
   on('seeres', () => results());
 }
-// mode 'quick' asks the balanced 52-statement subset (2 each way per topic); 'full' asks all 104.
+// mode 'quick' asks the balanced 52-statement subset (2 each way per topic); 'full' asks all 100.
 function startNew(mode = 'full') {
   clearHash();
   const pool = mode === 'quick' ? QUESTIONS.filter(q => QUICK_IDS.has(q.id)) : QUESTIONS;

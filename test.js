@@ -30,8 +30,10 @@ section('Statements');
 check('balance audit passes', G('balanceAudit().ok'));
 for (const c of CATS) {
   const qs = QUESTIONS.filter(q => q.cat === c.id);
-  check(`topic "${c.name}" is 4 vs 4`, qs.filter(q => q.d > 0).length === 4 && qs.filter(q => q.d < 0).length === 4);
+  const pos = qs.filter(q => q.d > 0).length, neg = qs.filter(q => q.d < 0).length;
+  check(`topic "${c.name}" is balanced (${pos} vs ${neg})`, pos === neg && pos >= 3);
 }
+check('the full test has exactly 100 statements', QUESTIONS.length === 100, `got ${QUESTIONS.length}`);
 check('statement ids are unique', new Set(QUESTIONS.map(q => q.id)).size === QUESTIONS.length);
 check('statement texts are unique', new Set(QUESTIONS.map(q => q.t)).size === QUESTIONS.length);
 check('every statement belongs to a section', QUESTIONS.every(q => q.sec >= 0));
