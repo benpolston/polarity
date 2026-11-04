@@ -420,7 +420,7 @@ function results(view) {
         </div>
         <p class="small muted">Scale −10 to +10. Each score = (sum of directional answers) ÷ (2 × statements counted) × 10, so ±10 means strongly agreeing with every statement in one direction. “Don't know” answers aren't counted.</p>
         <div class="row noprint">
-          <button id="x-img">Save as image</button><button class="ghost" id="x-print">Print</button><button class="ghost" id="x-copy">Copy summary</button>
+          <button id="x-img">Save as image</button><button class="ghost" id="x-copy">Copy summary</button>
         </div>
         ${own ? `<div class="row noprint" style="margin-top:8px"><button class="ghost" id="x-new">Retake test</button></div>` : ''}
       </div>
@@ -502,7 +502,6 @@ function results(view) {
 
   // wire up
   const $ = id => document.getElementById(id);
-  $('x-print').onclick = () => window.print();
   $('x-img').onclick = () => saveImage(pt, quad, nE, nS);
   $('x-copy').onclick = () => {
     const txt = `${quad}\nEconomic: ${fmt(pt.econ)} (${pt.econ >= 0 ? 'Right' : 'Left'})\nSocial: ${fmt(pt.soc)} (${pt.soc >= 0 ? 'Authoritarian' : 'Libertarian'})\n` + catScores.map(s => `${s.c.name}: ${s.v === null ? 'n/a' : fmt(s.v, 1)}`).join('\n');
