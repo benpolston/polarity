@@ -84,45 +84,57 @@ function sharedError(msg) {
   document.getElementById('se-home').onclick = () => { clearHash(); render(); };
 }
 
-/* ---------------- intro ---------------- */
+/* ---------------- landing page ---------------- */
 function intro() {
   $mini.textContent = '';
   const audit = balanceAudit();
   const resume = S && S.started && !S.finished;
+  const feature = (icon, title, body) => `<div class="feat"><div class="feat-i" aria-hidden="true">${icon}</div><h3>${title}</h3><p>${body}</p></div>`;
   $app.innerHTML = `
-    <h1>A more specific political compass</h1>
-    <p class="lead">${QUESTIONS.length} concrete policy statements place you on two axes: <b>economic</b> (collective ↔ free market) and <b>social</b> (libertarian ↔ authoritarian). Each statement is a specific position rather than a slogan, so people at either extreme can disagree with some of them.</p>
-    <div class="card">
-      <div class="row">
-        ${resume ? `<button id="resume">Resume (${answered()}/${S.order.length} answered)</button><button class="ghost" id="restart">Start over</button>`
-                 : `<button id="start">Full test (${QUESTIONS.length} statements)</button><button class="ghost" id="start-quick">Quick test (${QUICK_IDS.size})</button>`}
-        ${S && S.finished ? `<button class="ghost" id="seeres">View last results</button>` : ''}
+    <section class="land-hero">
+      <div class="land-copy">
+        <h1>Find out where you <em>actually</em> stand.</h1>
+        <p class="lead">${QUESTIONS.length} specific policy statements, not slogans, place you on two axes: <b>economic</b> (left ↔ right) and <b>social</b> (libertarian ↔ authoritarian).</p>
+        <div class="row land-cta">
+          ${resume ? `<button id="resume">Resume (${answered()} of ${S.order.length} answered)</button><button class="ghost" id="restart">Start over</button>`
+                   : `<button id="start">Take the full test <span class="cta-sub">${QUESTIONS.length} statements · about 15 min</span></button>
+                      <button class="ghost" id="start-quick">Quick test <span class="cta-sub">${QUICK_IDS.size} statements · about 7 min</span></button>`}
+        </div>
+        ${S && S.finished ? `<p class="small"><a href="#" id="seeres">View your last results →</a></p>` : ''}
+        <p class="muted small">No sign-up. Your answers stay in your browser. Keys 1–5 answer, 0 = don't know, ← goes back.</p>
       </div>
-      <p class="muted small">${SECTIONS.length} short sections, about 12–18 minutes in all. Keys 1–5 answer, 0 = don't know, ← goes back.</p>
+      <figure class="card land-chart">
+        <div id="landing-chart"></div>
+        <figcaption class="small muted">Where well-known figures land (rough estimates). Your result appears on this chart too.</figcaption>
+      </figure>
+    </section>
+
+    <h2 class="land-h2">What makes it different</h2>
+    <div class="feats">
+      ${feature('◎', 'Specific, not slogans', 'Every statement is a concrete policy, such as a $1 million top tax rate or unarmed police, so people at either extreme still find things to disagree with.')}
+      ${feature('⚖', 'Balanced by design', `Every topic has exactly 4 statements pushing each way${audit.ok ? '' : ' (<b>audit failed</b>)'}, all weighted equally. Agreeing with everything puts you dead center, not on one side.`)}
+      ${feature('?', '“Don’t know” is respected', 'Unsure about a topic? “Don’t know” is left out of your score entirely instead of quietly pulling you toward the middle. Jargon comes with a plain-English explanation.')}
+      ${feature('▤', 'Every detail of your result', `Scores for all ${CATS.length} topics, the answers that moved you most, a consistency check, timing, and every answer, which you can change and watch the result update.`)}
+      ${feature('●', 'See who you’re near', `Compare your position with ${FIGURES.length} politicians, thinkers and commentators, and see which of your views each one likely shares or opposes.`)}
+      ${feature('⇄', 'Private sharing', 'Share a link, compare side by side with a friend, or save your chart as an image. No accounts, and nothing is stored on a server.')}
     </div>
-    <div class="grid2">
-      <div class="card"><h2>What you get</h2>
-        <ul class="small">
-          <li>Your position, to two decimal places, on both axes</li>
-          <li>Scores for all ${CATS.length} topic areas (taxes, policing, immigration, …)</li>
-          <li>Every answer, how much each one moved you, and how long you took</li>
-          <li>A consistency score based on pairs of opposing statements</li>
-          <li>Where political figures fall relative to you (rough estimates)</li>
-          <li>A private share link, and side-by-side comparison with a friend</li>
-          <li>Edit any answer and watch the result recompute; export JSON/CSV</li>
-        </ul></div>
-      <div class="card"><h2>How it avoids skewing</h2>
-        <ul class="small">
-          <li>Every topic has <b>exactly 4 statements pushing each way</b> (${audit.ok ? 'verified at load' : '<b>AUDIT FAILED</b>'}). Agreeing with everything lands you dead center.</li>
-          <li>All statements carry equal weight.</li>
-          <li>Question order is randomized within each section on every run.</li>
-          <li>“Neutral” means a genuinely middle view and scores 0. <b>“Don't know” is left out of your score entirely</b>, so unfamiliar topics don't drag you toward the center.</li>
-          <li>Direction of each statement is shown on the results page so nothing is hidden.</li>
-        </ul></div>
+
+    <h2 class="land-h2">How it works</h2>
+    <ol class="steps">
+      <li><b>Answer</b><span>${SECTIONS.length} short sections, from the economy to religion. Agree, disagree, or say you don't know.</span></li>
+      <li><b>See where you land</b><span>Your position on both axes, a breakdown by topic, and the figures nearest to you.</span></li>
+      <li><b>Dig in or share</b><span>Explore every answer, compare with a friend, or save your chart to share.</span></li>
+    </ol>
+    <div class="land-bottom">
+      ${resume ? '' : `<button id="start2">Take the full test</button><button class="ghost" id="start-quick2">Quick test</button>`}
     </div>`;
-  const on = (id, f) => { const el = document.getElementById(id); if (el) el.onclick = f; };
-  on('start', () => startNew('full'));
-  on('start-quick', () => startNew('quick'));
+  // sample chart: as many default figures as fit this width without any label moving
+  const lc = document.getElementById('landing-chart');
+  const w = lc.clientWidth;
+  lc.innerHTML = compassSVG(null, null, FIGURES.filter(f => fittedDefaults(w).includes(f.name)), null, { width: w });
+  const on = (id, f) => { const el = document.getElementById(id); if (el) el.onclick = e => { e.preventDefault(); f(); }; };
+  on('start', () => startNew('full')); on('start2', () => startNew('full'));
+  on('start-quick', () => startNew('quick')); on('start-quick2', () => startNew('quick'));
   on('restart', () => { if (confirm('Discard your saved progress and start over?')) startNew(S.mode || 'full'); });
   on('resume', () => { shownAt = 0; quiz(); });
   on('seeres', () => results());
@@ -717,7 +729,7 @@ function applyDefaultsForWidth() {
 }
 function figuresCard() {
   return `<div class="card" id="figs"><h2>Political figures</h2>
-    <p class="small muted"><b>Positions are rough editorial estimates, not measurements.</b> They are not derived from this test's questions or taken from politicalcompass.org, and many figures shifted over their careers. Distance is the straight-line gap between this result and theirs on the −10…+10 grid (the maximum possible is about 28). Edit <code>figures.js</code> to correct any placement.</p>
+    <p class="small muted"><b>Positions are rough editorial estimates, not measurements.</b> They are not derived from this test's questions, and many figures shifted over their careers. Distance is the straight-line gap between this result and theirs on the −10…+10 grid (the maximum possible is about 28). Edit <code>figures.js</code> to correct any placement.</p>
     <div class="filters noprint">
       <select id="fg-quad"><option value="">All quadrants</option>${['Authoritarian Left', 'Authoritarian Right', 'Libertarian Left', 'Libertarian Right'].map(q => `<option>${q}</option>`).join('')}</select>
       <input id="fg-text" placeholder="Search names…">
