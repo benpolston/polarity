@@ -294,7 +294,15 @@ function compassSVG(x, y, figs, friend, opts = {}) {
     g += `<text x="${spot[0]}" y="${spot[1] + H - FS * 0.35}" font-size="${FS}"${L.bold ? ' font-weight="700"' : ''} fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">${esc(L.name)}</text>`;
   }
   if (friend) g += `<circle cx="${px(friend.econ)}" cy="${py(friend.soc)}" r="8" fill="#fff" stroke="#111" stroke-width="3"/>`;
-  if (x !== null) g += `<circle cx="${px(x)}" cy="${py(y)}" r="9" fill="#111" stroke="#fff" stroke-width="2.5"/>`;
+  if (x !== null) {
+    // your dot: bigger than any figure, with a halo + ring so it's findable on a crowded chart.
+    // .you-pulse is invisible by default (opacity 0) and only animated by CSS, so saved images stay static.
+    const cx = px(x), cy = py(y);
+    g += `<circle class="you-pulse" cx="${cx}" cy="${cy}" r="11" fill="none" stroke="#111" stroke-width="3" opacity="0"/>`;
+    g += `<circle cx="${cx}" cy="${cy}" r="19" fill="#fff" fill-opacity=".45" stroke="#111" stroke-opacity=".35" stroke-width="1.2"/>`;
+    g += `<circle cx="${cx}" cy="${cy}" r="11" fill="#111" stroke="#fff" stroke-width="3"/>`;
+    g += `<circle cx="${cx}" cy="${cy}" r="3.2" fill="#fff"/>`;
+  }
   compassSVG.lastMoved = moved;
   const aria = x === null ? 'Political compass showing estimated positions of well-known figures' : `Political compass: economic ${fmt(x)}, social ${fmt(y)}`;
   return `<svg viewBox="0 0 ${SZW} ${SZ}" width="100%" role="img" aria-label="${aria}"><g transform="translate(16 0)">${g}</g></svg>`;
@@ -408,7 +416,7 @@ function results(view) {
         </div>
         <div id="fp-list" class="figpick-list"></div>
       </div>
-      <div class="legend"><span><span class="dot" style="background:#111"></span>${own ? 'You' : esc(R.name || 'Shared result')}</span>${showFriend ? `<span><span class="dot ring"></span>${esc(friendName())}</span>` : ''}</div></div>
+      <div class="legend"><span><span class="dot" style="background:#111;box-shadow:0 0 0 2px #fff,0 0 0 4px rgba(17,17,17,.35)"></span>${own ? 'You' : esc(R.name || 'Shared result')}</span>${showFriend ? `<span><span class="dot ring"></span>${esc(friendName())}</span>` : ''}</div></div>
     <div>
       <div class="card" style="margin-top:0">
         <div class="big">${quad}</div>

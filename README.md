@@ -46,6 +46,7 @@ but clipboard copy needs `http://localhost` or HTTPS.)
 | `test.js`, `tests.html` | Automated checks (see above) |
 | `style.css` | All styling, including the small-screen layout |
 | `logo.svg` | Logo and favicon (deliberately has no position dot, so it implies no lean) |
+| `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `site.webmanifest` | Home-screen icons (the logo on an opaque background) for iPhone and Android |
 | `og-image.png` | 1200×630 link-preview image (no figures or dot, so it implies no lean) |
 | `bump-version.js` | Cache-busting helper for deploys |
 

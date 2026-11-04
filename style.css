@@ -85,6 +85,9 @@ ul.clean{list-style:none;padding:0;margin:0}
 ul.clean li{padding:7px 0;border-bottom:1px solid var(--line);font-size:.9rem;display:flex;gap:10px;justify-content:space-between}
 ul.clean li span:last-child{white-space:nowrap;font-variant-numeric:tabular-nums}
 details summary{cursor:pointer;font-weight:600}
+.you-pulse{transform-box:fill-box;transform-origin:center;animation:you-pulse 1.6s ease-out .3s 3}
+@keyframes you-pulse{0%{opacity:.7;transform:scale(1)}100%{opacity:0;transform:scale(3)}}
+@media (prefers-reduced-motion:reduce){.you-pulse{animation:none}}
 @media print{.top,.foot,.noprint,button{display:none!important}body{background:#fff}.card{break-inside:avoid}}
 
 .filters label{display:flex;align-items:center;gap:6px;font-size:.9rem}

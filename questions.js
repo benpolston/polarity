@@ -6,7 +6,7 @@
  *   Social axis:   +1 = agreeing pushes toward AUTHORITARIAN,          -1 = toward LIBERTARIAN
  *
  * Anti-skew design:
- *   - Every category has exactly 4 statements in each direction (audited live in the Methodology section).
+ *   - Every category has exactly 4 statements in each direction (checked by balanceAudit() and `node test.js`).
  *   - Every statement has equal weight (1).
  *   - Statements describe concrete policies, not slogans, so someone at either extreme can
  *     disagree with a statement without it being "their side's" position in disguise.
