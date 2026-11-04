@@ -392,7 +392,7 @@ function results(view) {
   <nav class="rnav noprint" id="rnav" aria-label="Results sections">${[
       ['overview', 'Overview'], ...(showFriend ? [['compare', 'Compare']] : []), ['figs', 'Figures'], ['topics', 'Topics'],
       ['moved', 'What moved it'], ['style', 'Answer style'], ['consistency', 'Consistency'], ...(own ? [['timing', 'Timing']] : []),
-      ['answers', 'Every answer'], ['method', 'Method'],
+      ['answers', 'Every answer'],
     ].map(([id, l]) => `<a href="#${id}" data-sec="${id}">${l}</a>`).join('')}</nav>
   <div class="hero" id="overview">
     <div class="card" style="margin-top:0"><div id="compass-wrap"></div>
@@ -498,19 +498,6 @@ function results(view) {
       <input id="f-text" placeholder="Search statements…" value="${esc(tableState.text)}">
     </div>
     <div class="tw"><table id="ans-table"></table></div>
-  </div>
-
-  <div class="card" id="method"><h2>Methodology &amp; balance audit</h2>
-    <p class="small">Answers map to −2…+2; “Don't know” is excluded. Each statement has a fixed direction (shown above as “Agreeing pushes”). Directional value = answer × direction. Axis score = Σ directional value ÷ (2 × statements counted on that axis) × 10. Weights are all 1, and no statement belongs to both axes.</p>
-    ${['econ', 'soc'].map(ax => {
-      const rows = balanceAudit().rows.filter(r => r.cat.axis === ax);
-      const tp = rows.reduce((t, r) => t + r.pos, 0), tn = rows.reduce((t, r) => t + r.neg, 0);
-      return `<h3>${AXES[ax].name} axis</h3><div class="tw"><table><tr><th>Topic</th><th>Agreeing pushes ${AXES[ax].posShort}</th><th>Agreeing pushes ${AXES[ax].negShort}</th></tr>
-      ${rows.map(r => `<tr><td>${r.cat.name}</td><td>${r.pos}</td><td>${r.neg}</td></tr>`).join('')}
-      <tr><td><b>Total</b></td><td><b>${tp}</b></td><td><b>${tn}</b></td></tr></table></div>`;
-    }).join('')}
-    <p class="small">Audit: <span class="pill ${balanceAudit().ok ? 'ok' : 'bad'}">${balanceAudit().ok ? 'perfectly balanced' : 'IMBALANCED'}</span> · Sanity checks: all-neutral → (0, 0); all-agree → (0, 0); all-disagree → (0, 0).</p>
-    <p class="small muted">Limits: a short questionnaire cannot capture every view; the two axes are a simplification, and statements are phrased as the author understood common positions. Treat results as a description of the answers, not a verdict.</p>
   </div>`;
 
   // wire up
