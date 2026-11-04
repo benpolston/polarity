@@ -408,7 +408,7 @@ function results(view) {
         </div>
         <p class="small muted">Scale −10 to +10. Each score = (sum of directional answers) ÷ (2 × statements counted) × 10, so ±10 means strongly agreeing with every statement in one direction. “Don't know” answers aren't counted.</p>
         <div class="row noprint">
-          <button id="x-json">Export JSON</button><button class="ghost" id="x-csv">Export CSV</button><button class="ghost" id="x-print">Print</button><button class="ghost" id="x-copy">Copy summary</button>
+          <button id="x-img">Save as image</button><button class="ghost" id="x-json">Export JSON</button><button class="ghost" id="x-csv">Export CSV</button><button class="ghost" id="x-print">Print</button><button class="ghost" id="x-copy">Copy summary</button>
         </div>
         ${own ? `<div class="row noprint" style="margin-top:8px"><button class="ghost" id="x-new">Retake test</button></div>` : ''}
       </div>
@@ -506,6 +506,7 @@ function results(view) {
   $('x-json').onclick = () => download('polarity-results.json', JSON.stringify(exportData(pt, catScores, pairRows, consistency), null, 2), 'application/json');
   $('x-csv').onclick = () => download('polarity-answers.csv', exportCSV(), 'text/csv');
   $('x-print').onclick = () => window.print();
+  $('x-img').onclick = () => saveImage(pt, quad, nE, nS);
   $('x-copy').onclick = () => {
     const txt = `${quad}\nEconomic: ${fmt(pt.econ)} (${pt.econ >= 0 ? 'Right' : 'Left'})\nSocial: ${fmt(pt.soc)} (${pt.soc >= 0 ? 'Authoritarian' : 'Libertarian'})\n` + catScores.map(s => `${s.c.name}: ${s.v === null ? 'n/a' : fmt(s.v, 1)}`).join('\n');
     copyText(txt, $('x-copy'));
@@ -566,6 +567,76 @@ function initResultsNav() {
   }, { rootMargin: '-100px 0px -55% 0px' });
   links.forEach(l => { const el = document.getElementById(l.dataset.sec); if (el) window._rnavObs.observe(el); });
   setActive('overview');
+}
+/* ---------------- save as image ---------------- */
+// Builds a 1080x1350 PNG (portrait, suits social posts): wordmark, result, the chart as currently set up
+// (chosen figures + any friend comparison), and the site address.
+async function saveImage(pt, quad, nE, nS) {
+  const btn = document.getElementById('x-img'), label = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Preparing…';
+  try {
+    const W = 1080, H = 1350, SCALE = 2, CHART_W = 1000, CHART_H = Math.round(CHART_W * 540 / 620);
+    const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+    // chart at desktop label size (the size the no-shift rule is checked at), with CSS colors resolved
+    const picked = figsWithDist(pt).filter(f => figState.sel.has(f.name)).sort((a, b) => a.dist - b.dist);
+    let friend = null;
+    if (R.own && FRIEND) { const fp = scoreOf(null, FRIEND.answers); friend = { econ: fp.econ, soc: fp.soc, name: friendName() }; }
+    const css = getComputedStyle(document.documentElement);
+    let svg = compassSVG(pt.econ, pt.soc, picked, friend, { width: CHART_W });
+    svg = svg.replace(/var\(--(\w+)\)/g, (m, v) => css.getPropertyValue('--' + v).trim() || '#ccc')
+             .replace(' width="100%"', '')        // a standalone SVG needs one fixed size (duplicate attributes are invalid)
+             .replace('<svg ', `<svg xmlns="http://www.w3.org/2000/svg" width="${CHART_W}" height="${CHART_H}" font-family='${FONT}' `);
+    const loadImg = src => new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = bad; i.src = src; });
+    const [chart, logo] = await Promise.all([
+      loadImg('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)),
+      loadImg(document.querySelector('.wm-o').src),
+    ]);
+    const cv = document.createElement('canvas'); cv.width = W * SCALE; cv.height = H * SCALE;
+    const c = cv.getContext('2d'); c.scale(SCALE, SCALE);
+    c.fillStyle = '#ffffff'; c.fillRect(0, 0, W, H);
+    // wordmark: P + mark + larity
+    c.fillStyle = '#1d1f24'; c.textBaseline = 'alphabetic';
+    c.font = `800 46px ${FONT}`;
+    let x = 40; const base = 84;
+    c.fillText('P', x, base); x += c.measureText('P').width + 1;
+    c.drawImage(logo, x, base - 29, 30, 30); x += 32;
+    c.fillText('larity', x, base);
+    // result
+    const who = R.own ? '' : (R.name ? `${R.name}'s result` : 'Shared result');
+    if (who) { c.font = `600 26px ${FONT}`; c.fillStyle = '#6b7280'; c.fillText(who, 40, 140); }
+    c.fillStyle = '#1d1f24'; c.font = `800 60px ${FONT}`;
+    c.fillText(quad, 40, who ? 200 : 180);
+    c.font = `500 30px ${FONT}`; c.fillStyle = '#374151';
+    const line = `Economic ${nE ? fmt(pt.econ) : 'n/a'}${nE ? (pt.econ >= 0 ? ' Right' : ' Left') : ''}     Social ${nS ? fmt(pt.soc) : 'n/a'}${nS ? (pt.soc >= 0 ? ' Authoritarian' : ' Libertarian') : ''}`;
+    c.fillText(line, 40, who ? 248 : 228);
+    // chart
+    const chartY = 280;
+    c.drawImage(chart, (W - CHART_W) / 2, chartY, CHART_W, CHART_H);
+    // legend + footer
+    const fy = chartY + CHART_H + 40;
+    c.font = `500 24px ${FONT}`; c.fillStyle = '#1d1f24';
+    c.beginPath(); c.arc(52, fy - 8, 9, 0, Math.PI * 2); c.fill();
+    c.fillText(R.own ? 'You' : (R.name || 'Result'), 70, fy);
+    if (friend) {
+      const lx = 70 + c.measureText(R.own ? 'You' : 'Result').width + 40;
+      c.lineWidth = 3; c.strokeStyle = '#1d1f24'; c.beginPath(); c.arc(lx, fy - 8, 8, 0, Math.PI * 2); c.stroke();
+      c.fillText(friend.name, lx + 18, fy);
+    }
+    c.font = `400 20px ${FONT}`; c.fillStyle = '#6b7280';
+    c.fillText('Figure positions are rough estimates.', 40, H - 40);
+    const site = (location.host + location.pathname.replace(/index\.html$/, '')).replace(/\/$/, '');
+    c.font = `600 24px ${FONT}`; c.fillStyle = '#1d1f24'; c.textAlign = 'right';
+    c.fillText(`Take the test: ${site}`, W - 40, H - 40);
+    await new Promise(done => cv.toBlob(blob => {
+      const url = URL.createObjectURL(blob), a = document.createElement('a');
+      a.href = url; a.download = 'polarity-result.png'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); done();
+    }, 'image/png'));
+    btn.textContent = 'Saved';
+  } catch (e) {
+    btn.textContent = 'Could not create image';
+    console.error('saveImage failed', e);
+  }
+  setTimeout(() => { btn.textContent = label; btn.disabled = false; }, 1800);
 }
 function rerenderKeepScroll() { const y = window.scrollY; results(); window.scrollTo(0, y); }
 function copyText(text, btn, fallbackInput) {
