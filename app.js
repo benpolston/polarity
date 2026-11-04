@@ -377,7 +377,12 @@ function results(view) {
   ${isQuick ? `<div class="card banner noprint"><b>${own ? 'You took' : 'This is from'} the quick test (${QS.length} statements).</b>
     It's balanced the same way as the full test, but with half the statements the result is less precise.
     ${own ? `<div class="row" style="margin-top:10px"><button id="go-full">Answer the other ${QUESTIONS.length - QS.length} for the full result</button></div>` : ''}</div>` : ''}
-  <div class="hero">
+  <nav class="rnav noprint" id="rnav" aria-label="Results sections">${[
+      ['overview', 'Overview'], ...(showFriend ? [['compare', 'Compare']] : []), ['figs', 'Figures'], ['topics', 'Topics'],
+      ['moved', 'What moved it'], ['style', 'Answer style'], ['consistency', 'Consistency'], ...(own ? [['timing', 'Timing']] : []),
+      ['answers', 'Every answer'], ['method', 'Method'],
+    ].map(([id, l]) => `<a href="#${id}" data-sec="${id}">${l}</a>`).join('')}</nav>
+  <div class="hero" id="overview">
     <div class="card" style="margin-top:0"><div id="compass-wrap"></div>
       <div class="figpick noprint">
         <div class="figpick-bar">
@@ -430,7 +435,7 @@ function results(view) {
 
   ${figuresCard()}
 
-  <div class="card"><h2>Scores by topic</h2>
+  <div class="card" id="topics"><h2>Scores by topic</h2>
     <p class="small muted">Each topic is scored on the same −10…+10 scale from its ${isQuick ? '4' : '8'} statements (minus any “Don't know”).</p>
     ${['econ', 'soc'].map(ax => `
       <h3>${AXES[ax].name} axis</h3>
@@ -438,7 +443,7 @@ function results(view) {
       ${catScores.filter(s => s.c.axis === ax).map(s => topicBar(s.c.name, s.v, ax, s.n < s.asked ? `${s.n} of ${s.asked} counted` : '')).join('')}`).join('')}
   </div>
 
-  <div class="grid2">
+  <div class="grid2" id="moved">
     <div class="card"><h2>What moved the economic score</h2>
       <p class="small">Points toward Right: <b>+${eT.pos.toFixed(2)}</b> (${eT.nPos} answers) · toward Left: <b>${fmtS(eT.neg)}</b> (${eT.nNeg} answers) · neutral: ${eT.nZero}${skipE ? ` · don't know: ${skipE}` : ''}. Net = ${fmt(pt.econ)}.</p>
       <h3>Biggest pulls to the Right</h3>${pullList(topList('econ', +1))}
@@ -449,21 +454,21 @@ function results(view) {
       <h3>Biggest pulls to Libertarian</h3>${pullList(topList('soc', -1))}</div>
   </div>
 
-  <div class="card"><h2>How ${own ? 'you' : 'they'} answered</h2>
+  <div class="card" id="style"><h2>How ${own ? 'you' : 'they'} answered</h2>
     <div class="row small muted" style="gap:14px">${LABELS6.map((l, i) => `<span><span class="dot c${i}"></span>${l}</span>`).join('')}</div>
     ${stack(dAll, 'All statements')}${stack(dE, 'Economic statements')}${stack(dS, 'Social statements')}
     <p class="small">Agreed with <b>${agreeN}</b> and disagreed with <b>${disN}</b> statements (${dAll[2]} neutral, ${skipN} don't know). Because exactly half of all statements point each way, a habit of agreeing (or disagreeing) with everything cancels out rather than moving the position — ${Math.abs(agreeN - disN) > 20 ? 'this result leans noticeably toward ' + (agreeN > disN ? 'agreement' : 'disagreement') + ', which the design neutralizes.' : 'the agree/disagree balance here is even.'}</p>
     <p class="small">Strong opinions (“strongly” either way): <b>${strongN}</b> of ${nKnown} counted answers (${nKnown ? (strongN / nKnown * 100).toFixed(0) : 0}%). Average intensity: <b>${avgExtremity.toFixed(2)}</b> of 2.00.</p>
   </div>
 
-  <div class="card"><h2>Consistency check</h2>
+  <div class="card" id="consistency"><h2>Consistency check</h2>
     <p class="small">${pairRows.length} pairs of statements are logical opposites (e.g. “free healthcare” vs. “pay for your own”). Opposite statements should get opposite answers. <span class="pill ${nBad ? 'bad' : nWarn ? 'warn' : 'ok'}">${nBad} conflicting · ${nWarn} mild tension · ${judged.length - nBad - nWarn} consistent${nSkipPairs ? ` · ${nSkipPairs} skipped` : ''}</span></p>
     <div class="tw"><table><tr><th>Statement A</th><th>Answer</th><th>Statement B</th><th>Answer</th><th></th></tr>
     ${pairRows.map(p => `<tr><td>${esc(p.a.t)}</td><td>${labelOf(A[p.a.id].v)}</td><td>${esc(p.b.t)}</td><td>${labelOf(A[p.b.id].v)}</td><td><span class="pill ${p.status}">${{ ok: 'consistent', warn: 'tension', bad: 'conflict', skip: 'skipped' }[p.status]}</span></td></tr>`).join('')}
     </table></div>
   </div>
 
-  ${own ? `<div class="card"><h2>Timing &amp; hesitation</h2>
+  ${own ? `<div class="card" id="timing"><h2>Timing &amp; hesitation</h2>
     <p class="small">Total time on statements: <b>${dur(totalMs)}</b> · median per statement: <b>${(medMs / 1000).toFixed(1)}s</b> · answers changed: <b>${changes}</b></p>
     <div class="grid2"><div><h3>Longest deliberation</h3><ul class="clean">${slow.map(t => `<li><span>${esc(t.q.t)}</span><span>${(t.ms / 1000).toFixed(1)}s</span></li>`).join('')}</ul></div>
     <div><h3>Fastest answers</h3><ul class="clean">${fast.map(t => `<li><span>${esc(t.q.t)}</span><span>${(t.ms / 1000).toFixed(1)}s</span></li>`).join('')}</ul></div></div>
@@ -472,7 +477,7 @@ function results(view) {
     <p class="small muted">Fast “snap” answers and long hesitations can both flag statements where your view may be less settled.</p>
   </div>` : ''}
 
-  <div class="card"><h2>Every answer</h2>
+  <div class="card" id="answers"><h2>Every answer</h2>
     <p class="small muted">${own ? 'Change any answer here and everything above recalculates. ' : ''}“Points” is how many axis points that answer contributed (positive = Right on economic statements, Authoritarian on social statements; negative = Left or Libertarian). “Don't know” contributes nothing.</p>
     <div class="filters noprint">
       <select id="f-axis"><option value="">All axes</option><option value="econ">Economic</option><option value="soc">Social</option></select>
@@ -483,7 +488,7 @@ function results(view) {
     <div class="tw"><table id="ans-table"></table></div>
   </div>
 
-  <div class="card"><h2>Methodology &amp; balance audit</h2>
+  <div class="card" id="method"><h2>Methodology &amp; balance audit</h2>
     <p class="small">Answers map to −2…+2; “Don't know” is excluded. Each statement has a fixed direction (shown above as “Agreeing pushes”). Directional value = answer × direction. Axis score = Σ directional value ÷ (2 × statements counted on that axis) × 10. Weights are all 1, and no statement belongs to both axes.</p>
     ${['econ', 'soc'].map(ax => {
       const rows = balanceAudit().rows.filter(r => r.cat.axis === ax);
@@ -538,6 +543,29 @@ function results(view) {
   }
   drawTable();
   initFigures(pt);
+  initResultsNav();
+}
+function initResultsNav() {
+  const nav = document.getElementById('rnav'); if (!nav) return;
+  const links = [...nav.querySelectorAll('a')];
+  nav.onclick = e => {
+    const a = e.target.closest('a'); if (!a) return;
+    e.preventDefault();                                   // keep the URL hash free for share links
+    document.getElementById(a.dataset.sec)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  const setActive = id => links.forEach(l => {
+    const on = l.dataset.sec === id; l.classList.toggle('on', on);
+    if (on) l.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  });
+  if (window._rnavObs) window._rnavObs.disconnect();
+  const seen = new Map();
+  window._rnavObs = new IntersectionObserver(entries => {
+    entries.forEach(en => seen.set(en.target.id, en.isIntersecting ? en.boundingClientRect.top : null));
+    const visible = links.map(l => [l.dataset.sec, seen.get(l.dataset.sec)]).filter(([, t]) => t !== null && t !== undefined);
+    if (visible.length) setActive(visible.sort((a, b) => Math.abs(a[1] - 110) - Math.abs(b[1] - 110))[0][0]);
+  }, { rootMargin: '-100px 0px -55% 0px' });
+  links.forEach(l => { const el = document.getElementById(l.dataset.sec); if (el) window._rnavObs.observe(el); });
+  setActive('overview');
 }
 function rerenderKeepScroll() { const y = window.scrollY; results(); window.scrollTo(0, y); }
 function copyText(text, btn, fallbackInput) {

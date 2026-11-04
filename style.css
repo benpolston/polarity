@@ -156,3 +156,12 @@ details summary{margin-top:10px}
 .helplink{background:none;border:0;color:var(--mute);padding:0;margin:-14px 0 16px;font-size:.88rem;text-decoration:underline dotted;text-underline-offset:3px;cursor:pointer}
 .helplink:hover{color:var(--ink)}
 .help{background:#f6f5f1;border-left:3px solid var(--line);border-radius:6px;padding:10px 12px;margin:-6px 0 18px;font-size:.92rem;color:#374151}
+
+/* results section navigation */
+.rnav{position:sticky;top:52px;z-index:4;display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;background:var(--bg);
+  padding:8px 0;margin:0 0 6px;border-bottom:1px solid var(--line)}
+.rnav::-webkit-scrollbar{display:none}
+.rnav a{flex:none;padding:6px 12px;border-radius:99px;font-size:.86rem;color:#374151;text-decoration:none;white-space:nowrap}
+.rnav a:hover{background:#eceae3}
+.rnav a.on{background:var(--ink);color:#fff}
+#overview,#compare,#figs,#topics,#moved,#style,#consistency,#timing,#answers,#method{scroll-margin-top:112px}
