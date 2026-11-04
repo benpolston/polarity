@@ -75,8 +75,8 @@ function render() {
 }
 window.addEventListener('hashchange', render);
 document.getElementById('home').addEventListener('click', e => {
-  e.preventDefault(); clearHash();
-  if (S && S.finished) results(); else if (S && S.started) quiz(); else intro();
+  // always the landing page; it offers "Resume" or "View your last results" when there's saved progress
+  e.preventDefault(); clearHash(); window.scrollTo(0, 0); intro();
 });
 function sharedError(msg) {
   $mini.textContent = '';
@@ -315,7 +315,7 @@ function results(view) {
   const QS = QUESTIONS.filter(q => A[q.id]);           // statements this person was asked (52 in a quick test)
   const isQuick = QS.length < QUESTIONS.length;
   const who = own ? 'You' : (R.name || 'They');
-  $mini.textContent = own ? 'Results' : 'Shared result';
+  $mini.textContent = own ? '' : 'Shared result';
   const tot = scoreOf(null, A);
   const nE = tot.nE, nS = tot.nS;
   const skipE = QS.filter(q => q.axis === 'econ' && A[q.id] && !known(A[q.id])).length;
