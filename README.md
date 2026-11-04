@@ -25,8 +25,11 @@ but clipboard copy needs `http://localhost` or HTTPS.)
 
 ## Deploy
 
-1. `node bump-version.js` — stamps a fresh `?v=` on every asset link in `index.html`, so
-   returning visitors get the new files instead of stale cached copies.
+1. `node bump-version.js --site=https://your-domain.com` stamps a fresh `?v=` on every asset link in
+   `index.html` (so returning visitors get the new files, not stale cached copies) and points the
+   link-preview tags at your domain. Link previews in iMessage, Discord, X, Facebook and Slack need
+   that absolute address; after the first run the domain is remembered, so plain
+   `node bump-version.js` is enough for later deploys.
 2. Commit, then upload the folder to any static host:
    - **GitHub Pages:** push to GitHub → Settings → Pages → deploy from the `main` branch, root folder.
    - **Netlify / Cloudflare Pages:** drag the folder onto the dashboard, or connect the repo
@@ -43,6 +46,7 @@ but clipboard copy needs `http://localhost` or HTTPS.)
 | `test.js`, `tests.html` | Automated checks (see above) |
 | `style.css` | All styling, including the small-screen layout |
 | `logo.svg` | Logo and favicon (deliberately has no position dot, so it implies no lean) |
+| `og-image.png` | 1200×630 link-preview image (no figures or dot, so it implies no lean) |
 | `bump-version.js` | Cache-busting helper for deploys |
 
 ## Editing rules that keep scoring unbiased

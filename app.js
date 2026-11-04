@@ -420,7 +420,7 @@ function results(view) {
         </div>
         <p class="small muted">Scale −10 to +10. Each score = (sum of directional answers) ÷ (2 × statements counted) × 10, so ±10 means strongly agreeing with every statement in one direction. “Don't know” answers aren't counted.</p>
         <div class="row noprint">
-          <button id="x-img">Save as image</button><button class="ghost" id="x-json">Export JSON</button><button class="ghost" id="x-csv">Export CSV</button><button class="ghost" id="x-print">Print</button><button class="ghost" id="x-copy">Copy summary</button>
+          <button id="x-img">Save as image</button><button class="ghost" id="x-print">Print</button><button class="ghost" id="x-copy">Copy summary</button>
         </div>
         ${own ? `<div class="row noprint" style="margin-top:8px"><button class="ghost" id="x-new">Retake test</button></div>` : ''}
       </div>
@@ -502,8 +502,6 @@ function results(view) {
 
   // wire up
   const $ = id => document.getElementById(id);
-  $('x-json').onclick = () => download('polarity-results.json', JSON.stringify(exportData(pt, catScores, pairRows, consistency), null, 2), 'application/json');
-  $('x-csv').onclick = () => download('polarity-answers.csv', exportCSV(), 'text/csv');
   $('x-print').onclick = () => window.print();
   $('x-img').onclick = () => saveImage(pt, quad, nE, nS);
   $('x-copy').onclick = () => {
@@ -891,36 +889,6 @@ function drawTable() {
     rerenderKeepScroll();
     document.getElementById('ans-table').scrollIntoView({ block: 'nearest' });
   });
-}
-
-/* ---------------- export ---------------- */
-function exportData(pt, catScores, pairRows, consistency) {
-  return {
-    generated: new Date().toISOString(),
-    source: R.own ? 'own' : 'shared link',
-    scale: 'axis scores range -10..+10; economic + = right/free market, social + = authoritarian; "don\'t know" answers are excluded',
-    scores: { economic: +pt.econ.toFixed(4), social: +pt.soc.toFixed(4), quadrant: quadrant(pt.econ, pt.soc) },
-    consistencyScore: consistency === null ? null : +consistency.toFixed(2),
-    topics: catScores.map(s => ({ id: s.c.id, name: s.c.name, axis: s.c.axis, score: s.v === null ? null : +s.v.toFixed(4), counted: s.n })),
-    consistency: pairRows.map(p => ({ a: p.a.id, b: p.b.id, status: p.status })),
-    answers: QUESTIONS.filter(q => R.answers[q.id]).map(q => answerRow(q)),
-    test: QUESTIONS.every(q => R.answers[q.id]) ? 'full' : 'quick',
-  };
-}
-function answerRow(q) {
-  const a = R.answers[q.id];
-  return { orderAsked: a.seq, section: SECTIONS[q.sec].title, id: q.id, statement: q.t, axis: q.axis, topic: q.cat, agreeingPushes: q.d > 0 ? AXES[q.axis].posShort : AXES[q.axis].negShort,
-    answer: known(a) ? a.v : null, answerLabel: labelOf(a.v), directionalValue: known(a) ? eff(q, a.v) : null, timeMs: a.ms, timesChanged: a.changes };
-}
-function exportCSV() {
-  const rows = QUESTIONS.filter(q => R.answers[q.id]).map(answerRow);
-  const cols = Object.keys(rows[0]);
-  const cell = v => `"${String(v === null ? '' : v).replace(/"/g, '""')}"`;
-  return [cols.join(',')].concat(rows.map(r => cols.map(c => cell(r[c])).join(','))).join('\n');
-}
-function download(name, text, type) {
-  const url = URL.createObjectURL(new Blob([text], { type }));
-  const a = document.createElement('a'); a.href = url; a.download = name; a.click(); URL.revokeObjectURL(url);
 }
 
 // used by tests.html to check chart label placement with the real drawing code
