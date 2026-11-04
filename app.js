@@ -101,7 +101,7 @@ function intro() {
                       <button class="ghost" id="start-quick">Quick test <span class="cta-sub">${QUICK_IDS.size} statements · about 7 min</span></button>`}
         </div>
         ${S && S.finished ? `<p class="small"><a href="#" id="seeres">View your last results →</a></p>` : ''}
-        <p class="muted small">No sign-up. Your answers stay in your browser. Keys 1–5 answer, 0 = don't know, ← goes back.</p>
+        <p class="muted small">No sign-up. Your answers stay in your browser.</p>
       </div>
       <figure class="card land-chart">
         <div id="landing-chart"></div>
