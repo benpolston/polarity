@@ -137,7 +137,8 @@ function intro() {
   const on = (id, f) => { const el = document.getElementById(id); if (el) el.onclick = e => { e.preventDefault(); f(); }; };
   on('start', () => startNew('full')); on('start2', () => startNew('full'));
   on('start-quick', () => startNew('quick')); on('start-quick2', () => startNew('quick'));
-  on('restart', () => { if (confirm('Discard your saved progress and start over?')) startNew(S.mode || 'full'); });
+  // discard progress and show the normal landing page, so either test can be chosen
+  on('restart', () => { if (confirm('Discard your saved progress and start over?')) { S = null; save(); intro(); window.scrollTo(0, 0); } });
   on('resume', () => { shownAt = 0; quiz(); });
   on('seeres', () => results());
 }
