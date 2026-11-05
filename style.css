@@ -151,7 +151,6 @@ details summary{margin-top:10px}
   table{font-size:.8rem}
   th,td{padding:6px 5px}
   td select{max-width:110px}
-  #fig-pop{max-height:70vh;overflow:auto}
   .wm{font-size:1.35rem}
 }
 
@@ -195,4 +194,7 @@ details summary{margin-top:10px}
   .feats,.steps{grid-template-columns:1fr}
   .land-hero h1{font-size:2rem}
 }
+/* touch screens: the box can be tapped and scrolled; scrolling it doesn't scroll the page */
+#fig-pop.touch{pointer-events:auto;max-height:min(70vh,calc(100vh - 16px));overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+#fig-pop .pop-x{float:right;margin:-6px -6px 0 8px;width:32px;height:32px;padding:0;border:0;background:none;color:var(--ink);font-size:1.4rem;line-height:1;cursor:pointer}
 #fig-pop .why{margin:8px 0 2px;padding:7px 9px;background:#f6f5f1;border-radius:7px;font-size:.82rem}

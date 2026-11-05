@@ -771,12 +771,19 @@ function popHTML(f) {
 let popEl, popFor = null;
 function showPop(target, x, y) {
   const f = FIGURES.find(f => f.name === target.dataset.fig); if (!f) return;
-  if (!popEl) { popEl = document.createElement('div'); popEl.id = 'fig-pop'; document.body.appendChild(popEl); }
-  if (popFor !== f.name || popEl.style.display !== 'block') popEl.innerHTML = popHTML(f);
+  if (!popEl) {
+    popEl = document.createElement('div'); popEl.id = 'fig-pop'; document.body.appendChild(popEl);
+    if (touchMode) popEl.classList.add('touch');                  // tappable + scrollable on phones
+  }
+  if (popFor !== f.name || popEl.style.display !== 'block') {
+    popEl.innerHTML = (touchMode ? '<button class="pop-x" aria-label="Close">×</button>' : '') + popHTML(f);
+    popEl.scrollTop = 0;
+  }
   popFor = f.name; popEl.style.display = 'block';
   const r = popEl.getBoundingClientRect();
   popEl.style.left = Math.max(8, Math.min(x + 14, innerWidth - r.width - 8)) + 'px';
-  popEl.style.top = (y + 16 + r.height > innerHeight ? Math.max(8, y - r.height - 12) : y + 16) + 'px';
+  let top = y + 16 + r.height > innerHeight ? y - r.height - 12 : y + 16;
+  popEl.style.top = Math.max(8, Math.min(top, innerHeight - r.height - 8)) + 'px';   // keep it fully on screen
 }
 const hidePop = () => { if (popEl) popEl.style.display = 'none'; popFor = null; };
 // Mouse: hover. Touch screens (no hover): tap a name or dot to open, tap anywhere else to close.
@@ -790,6 +797,7 @@ if (!touchMode) {
   document.addEventListener('focusout', hidePop);
 } else {
   document.addEventListener('click', e => {
+    if (popEl && popEl.contains(e.target)) { if (e.target.closest('.pop-x')) hidePop(); return; }   // taps inside the box keep it open
     const t = e.target.closest?.('[data-fig]');
     if (t && !t.closest('.fp-item')) {
       if (popFor === t.dataset.fig && popEl.style.display === 'block') return hidePop();
