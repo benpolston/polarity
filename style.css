@@ -125,6 +125,8 @@ button.sm{padding:4px 10px;font-size:.82rem;border-radius:7px}
 .cmp-topic{margin:10px 0 2px}
 .cmp-topic .dbar{margin:3px 0}
 .cmp-list li{display:block}
+ul.clean.cmp-list li span{white-space:normal}               /* statements wrap; the ul.clean no-wrap rule is for short numbers */
+.grid2>*{min-width:0}                                /* columns shrink to the card instead of growing with long text */
 details summary{margin-top:10px}
 
 /* ---------- small screens ---------- */
