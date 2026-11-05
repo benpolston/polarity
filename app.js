@@ -723,7 +723,7 @@ function applyDefaultsForWidth() {
 }
 function figuresCard() {
   return `<div class="card" id="figs"><h2>Political figures</h2>
-    <p class="small muted"><b>Positions are rough editorial estimates, not measurements.</b> They are not derived from this test's questions, and many figures shifted over their careers. Distance is the straight-line gap between this result and theirs on the −10…+10 grid (the maximum possible is about 28). Edit <code>figures.js</code> to correct any placement.</p>
+    <p class="small muted"><b>Positions are rough editorial estimates, not measurements.</b> They are not derived from this test's questions, and many figures shifted over their careers. Distance is the straight-line gap between this result and theirs on the −10…+10 grid (the maximum possible is about 28).</p>
     <div class="filters noprint">
       <select id="fg-quad"><option value="">All quadrants</option>${['Authoritarian Left', 'Authoritarian Right', 'Libertarian Left', 'Libertarian Right'].map(q => `<option>${q}</option>`).join('')}</select>
       <input id="fg-text" placeholder="Search names…">
@@ -761,13 +761,7 @@ function popHTML(f) {
   const item = r => `<li>${esc(r.q.t)}<br><span class="muted">${who}: ${ans(r.u)} · ${short}: ${ans(r.p.v)}${r.p.manual ? ' ★' : ' (inferred)'}</span></li>`;
   const why = (typeof FIGURE_WHY !== 'undefined' && FIGURE_WHY[f.name]) || '';
   const head = `<b>${esc(f.name)}</b><div class="muted small">${KIND_LABEL[f.kind]} · ${quad} · est. ${fmt(f.econ, 1)} econ, ${fmt(f.soc, 1)} social</div>${why ? `<p class="why"><b>Why here:</b> ${esc(why)}</p>` : ''}`;
-  if (!c.nSame && !c.nDiff) {
-    const central = Math.abs(f.econ) < 2 && Math.abs(f.soc) < 2;
-    return head + `<p class="small" style="margin-top:8px">${central
-      ? `${esc(f.name)} sits too close to the center to infer specific views from position alone, and no stances have been set manually yet.`
-      : 'No overlap to show: the statements this figure has a clear lean on are ones answered neutral or “Don\'t know”.'}</p>
-      <div class="muted small">Specific stances can be added in figures.js (FIG_STANCES_RAW).</div>`;
-  }
+  if (!c.nSame && !c.nDiff) return head;                        // nothing to compare (e.g. home page)
   return head + `
     <h4 class="ok">Likely to agree <span class="muted">(${c.nSame} statements)</span></h4><ul>${c.same.map(item).join('') || '<li class="muted">Nothing clear.</li>'}</ul>
     <h4 class="bad">Likely to disagree <span class="muted">(${c.nDiff} statements)</span></h4><ul>${c.diff.map(item).join('') || '<li class="muted">Nothing clear.</li>'}</ul>
