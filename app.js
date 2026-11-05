@@ -28,7 +28,6 @@ let tableState = { axis: '', cat: '', sec: '', text: '', sort: 'n', dir: 1 };
 /* ---------------- utils ---------------- */
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const fmt = (x, d = 2) => (x >= 0 ? '+' : '−') + Math.abs(x).toFixed(d);
-const fmtS = (x, d = 2) => x.toFixed(d).replace('-', '−');
 // Saved progress is tied to the exact statement set (QSET_KEY). If the statements change, ids can point at
 // different statements, so progress saved under an older set is dropped rather than misread.
 function load() { try { const s = JSON.parse(localStorage.getItem(STORE)); return s && s.qset === QSET_KEY ? s : null; } catch { return null; } }
@@ -116,7 +115,7 @@ function intro() {
       ${feature('◎', 'Specific, not slogans', 'Every statement is a concrete policy, such as a $1 million top tax rate or unarmed police, so people at either extreme still find things to disagree with.')}
       ${feature('⚖', 'Balanced by design', `Every topic has the same number of statements pushing each way${audit.ok ? '' : ' (<b>audit failed</b>)'}, all weighted equally. Agreeing with everything puts you dead center, not on one side.`)}
       ${feature('?', '“Don’t know” is respected', 'Unsure about a topic? “Don’t know” is left out of your score entirely instead of quietly pulling you toward the middle. Jargon comes with a plain-English explanation.')}
-      ${feature('▤', 'Every detail of your result', `Scores for all ${CATS.length} topics, the answers that moved you most, a consistency check, timing, and every answer, which you can change and watch the result update.`)}
+      ${feature('▤', 'Every detail of your result', `Scores for all ${CATS.length} topics, a consistency check, timing, and every answer, which you can change and watch the result update.`)}
       ${feature('●', 'See who you’re near', `Compare your position with ${FIGURES.length} politicians, thinkers and commentators, and see which of your views each one likely shares or opposes.`)}
       ${feature('⇄', 'Private sharing', 'Share a link, compare side by side with a friend, or save your chart as an image. No accounts, and nothing is stored on a server.')}
     </div>
@@ -350,15 +349,6 @@ function results(view) {
   const strongN = dAll[0] + dAll[4];
   const avgExtremity = nKnown ? QS.reduce((s, q) => s + (known(A[q.id]) ? Math.abs(A[q.id].v) : 0), 0) / nKnown : 0;
 
-  // contributions (in axis points) = eff * 5 / n   — they sum exactly to the axis score
-  const contrib = QS.filter(q => known(A[q.id])).map(q => ({ q, a: A[q.id], e: eff(q, A[q.id].v), pts: eff(q, A[q.id].v) * 5 / (q.axis === 'econ' ? nE : nS) }));
-  const topList = (ax, sign, n = 6) => contrib.filter(c => c.q.axis === ax && (sign > 0 ? c.pts > 0 : c.pts < 0)).sort((a, b) => sign * (b.pts - a.pts)).slice(0, n);
-  const pullTotals = ax => {
-    const cs = contrib.filter(c => c.q.axis === ax);
-    return { pos: cs.filter(c => c.pts > 0).reduce((s, c) => s + c.pts, 0), neg: cs.filter(c => c.pts < 0).reduce((s, c) => s + c.pts, 0),
-             nPos: cs.filter(c => c.pts > 0).length, nNeg: cs.filter(c => c.pts < 0).length, nZero: cs.filter(c => c.pts === 0).length };
-  };
-
   // consistency pairs ("Don't know" on either side → pair not judged)
   const pairs = {};
   QS.forEach(q => { if (q.p) (pairs[q.p] = pairs[q.p] || []).push(q); });
@@ -387,7 +377,6 @@ function results(view) {
     : nE ? (pt.econ >= 0 ? 'Right' : 'Left') + ' (social not scored)'
     : nS ? (pt.soc >= 0 ? 'Authoritarian' : 'Libertarian') + ' (economic not scored)' : 'Not enough answers';
   const dirE = nE ? (pt.econ >= 0 ? 'Right' : 'Left') : 'Not scored', dirS = nS ? (pt.soc >= 0 ? 'Authoritarian' : 'Libertarian') : 'Not scored';
-  const eT = pullTotals('econ'), sT = pullTotals('soc');
   const showFriend = own && FRIEND;
   const savedName = (() => { try { return localStorage.getItem(NAME_STORE) || ''; } catch { return ''; } })();
 
@@ -402,7 +391,7 @@ function results(view) {
     ${own ? `<div class="row" style="margin-top:10px"><button id="go-full">Answer the other ${QUESTIONS.length - QS.length} for the full result</button></div>` : ''}</div>` : ''}
   <nav class="rnav noprint" id="rnav" aria-label="Results sections">${[
       ['overview', 'Overview'], ...(showFriend ? [['compare', 'Compare']] : []), ['figs', 'Figures'], ['topics', 'Topics'],
-      ['moved', 'What moved it'], ['style', 'Answer style'], ['consistency', 'Consistency'], ...(own ? [['timing', 'Timing']] : []),
+      ['style', 'Answer style'], ['consistency', 'Consistency'], ...(own ? [['timing', 'Timing']] : []),
       ['answers', 'Every answer'],
     ].map(([id, l]) => `<a href="#${id}" data-sec="${id}">${l}</a>`).join('')}</nav>
   <div class="hero" id="overview">
@@ -464,17 +453,6 @@ function results(view) {
       <h3>${AXES[ax].name} axis</h3>
       <div class="axislab"><span>← ${AXES[ax].negShort}</span><span>${AXES[ax].posShort} →</span></div>
       ${catScores.filter(s => s.c.axis === ax).map(s => topicBar(s.c.name, s.v, ax, s.n < s.asked ? `${s.n} of ${s.asked} counted` : '')).join('')}`).join('')}
-  </div>
-
-  <div class="grid2" id="moved">
-    <div class="card"><h2>What moved the economic score</h2>
-      <p class="small">Points toward Right: <b>+${eT.pos.toFixed(2)}</b> (${eT.nPos} answers) · toward Left: <b>${fmtS(eT.neg)}</b> (${eT.nNeg} answers) · neutral: ${eT.nZero}${skipE ? ` · don't know: ${skipE}` : ''}. Net = ${fmt(pt.econ)}.</p>
-      <h3>Biggest pulls to the Right</h3>${pullList(topList('econ', +1))}
-      <h3>Biggest pulls to the Left</h3>${pullList(topList('econ', -1))}</div>
-    <div class="card"><h2>What moved the social score</h2>
-      <p class="small">Points toward Authoritarian: <b>+${sT.pos.toFixed(2)}</b> (${sT.nPos} answers) · toward Libertarian: <b>${fmtS(sT.neg)}</b> (${sT.nNeg} answers) · neutral: ${sT.nZero}${skipS ? ` · don't know: ${skipS}` : ''}. Net = ${fmt(pt.soc)}.</p>
-      <h3>Biggest pulls to Authoritarian</h3>${pullList(topList('soc', +1))}
-      <h3>Biggest pulls to Libertarian</h3>${pullList(topList('soc', -1))}</div>
   </div>
 
   <div class="card" id="style"><h2>How ${own ? 'you' : 'they'} answered</h2>
@@ -867,11 +845,6 @@ function drawFigures(pt) {
     rows.map(f => `<tr><td>${fname(f.name)}</td><td class="small muted">${KIND_LABEL[f.kind]}</td><td><span class="tag">${f.quad}</span></td><td>${fmt(f.econ, 1)}</td><td>${fmt(f.soc, 1)}</td><td>${f.dist.toFixed(1)}</td></tr>`).join('') +
     (rows.length ? '' : '<tr><td colspan="6" class="muted">No matching figures.</td></tr>');
   t.querySelectorAll('th[data-sort]').forEach(h => h.onclick = () => { if (figState.sort === h.dataset.sort) figState.dir *= -1; else { figState.sort = h.dataset.sort; figState.dir = 1; } drawFigures(pt); });
-}
-
-function pullList(list) {
-  if (!list.length) return '<p class="small muted">None.</p>';
-  return `<ul class="clean">${list.map(c => `<li><span>${esc(c.q.t)} <span class="muted">— ${labelOf(c.a.v)}</span></span><span class="${c.pts > 0 ? 'pos' : 'neg'}-${c.q.axis[0]}">${fmt(c.pts)}</span></li>`).join('')}</ul>`;
 }
 
 function drawTable() {
